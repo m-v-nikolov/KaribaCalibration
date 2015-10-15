@@ -6,8 +6,8 @@ from utils import is_number, val_scale, feature_scale, warn_p, debug_p
 
 from sim_data_2_models import sim_channels_2_model, sim_report_channels_model_format
 
-from kariba_settings import reports_channels, cluster_2_pops, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
+from kariba_settings import cc_correction_factor, cc_weight, reports_channels, calib_node_pop, cluster_2_pops, hfca_2_pop, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
+from kariba_utils import cc_data_aggregate, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
 
 
 class KaribaModel:
@@ -37,11 +37,11 @@ class KaribaModel:
         model_report_channels = sim_report_channels_model_format(reports_channels, self.sim_data)
         self.set_reinfection_penalty(model_report_channels['reinfections'], cluster_id)
         
-        if cc_penalty_model == 'ls_norm': 
+        if 'ls_norm' in cc_penalty_model: 
             self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], cluster_id)
-        if cc_penalty_model == 'ls_no_norm': 
+        if 'ls_no_norm' in cc_penalty_model: 
             self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], cluster_id)
-        if cc_penalty_model == 'corr':
+        if 'corr' in cc_penalty_model:
             self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], cluster_id)
         self.set_model_penalties()
 
@@ -160,58 +160,32 @@ class KaribaModel:
     def get_ref_avg_reinfection_rate(self):
         self.ref_avg_reinfection_rate
 
-    
-    
-    def cc_data_aggregate(self, model_clinical_cases, cluster_id):
         
-        # aggregate on a periodic basis to as many values as there are in the ref data
-        ccs_ref_agg = cluster_2_cc(cluster_id)                                        
-        ccs_model_agg = []
-        ccs_ref_agg_cleaned = []
+    def cc_data_nan_clean(self, ccs_model_agg, ccs_ref_agg):
         
-        sim_start_date = cc_sim_start_date
-        ref_start_date = cc_ref_start_date
-        ref_end_date = cc_ref_end_date
-        
-        ccs_model = []
-        cur_date = sim_start_date         
-               
-        for i,value in enumerate(model_clinical_cases):
-            if i > 0:
-                cur_date = cur_date+timedelta(days = 1)
-                
-            if cur_date >= ref_start_date and cur_date <= ref_end_date:
-                ccs_model.append(value)
-                
-                
-        cases_period = 0.0
-        periods = 0
-        for i, value in enumerate(ccs_model):
-            cases_period = cases_period + value
-            if (i+1) % (6*7) == 0 or (i+1) == len(ccs_model):
-                if periods < len(ccs_ref_agg): 
-                    if not ccs_ref_agg[periods] == 'nan': 
-                        ccs_model_agg.append(cases_period)
-                        ccs_ref_agg_cleaned.append(ccs_ref_agg[periods])
-                        cases_period = 0.0
-                        periods = periods + 1
-                else:
-                    break
-                
-        return ccs_model_agg, ccs_ref_agg_cleaned 
+        ccs_model_agg_clean = [] 
+        ccs_ref_agg_clean = []
+        for i,(date, cases) in enumerate(ccs_ref_agg):
+            if not cases == 'nan':
+                ccs_model_agg_clean.append(ccs_model_agg[i][1])
+                ccs_ref_agg_clean.append(cases)
+             
+        return ccs_model_agg_clean, ccs_ref_agg_clean
     
     
     
     def set_clinical_cases_penalty_by_corr(self, model_clinical_cases, cluster_id):
 
-        ccs_model_agg, ccs_ref_agg = self.cc_data_aggregate(model_clinical_cases, cluster_id)                                
+        ccs_model_agg, ccs_ref_agg = cc_data_aggregate(model_clinical_cases, cluster_id)
+                                        
+        ccs_model_agg, ccs_ref_agg = self.cc_data_nan_clean(ccs_model_agg, ccs_ref_agg)
     
         rho, p = spearmanr(ccs_ref_agg, ccs_model_agg)
         
         self.clinical_cases_penalty = 1 - rho
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
-        self.clinical_cases_penalty_weight = 100
+        self.clinical_cases_penalty_weight = cc_weight
         #debug_p('weighted clinical cases penalty ' + str(self.clinical_cases_penalty_weight*self.clinical_cases_penalty)) 
         
         self.rho = rho
@@ -365,9 +339,3 @@ class KaribaModel:
         
     def to_dict(self):
         return self.model.to_dict()
-        
-        
-        
-    
-    
-    

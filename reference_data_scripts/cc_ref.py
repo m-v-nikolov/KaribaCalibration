@@ -61,6 +61,7 @@ plt.figure('RDT positive cases',figsize=(15,11),facecolor='w')
 
 ccs_agg = {}
 ccs_orig = {}
+
 for i,clinic in enumerate(clinics):
     
     #ax=plt.subplot(len(clinics),1,i+1)
@@ -72,38 +73,54 @@ for i,clinic in enumerate(clinics):
     by_clinic=df[(df.shortname == clinic) & (df.dataelement == 'RDT positive cases')].sort('startdate')
     #print(by_clinic.head())
     tt=[pd.to_datetime(date) for date in by_clinic.startdate]
-    
     yy=by_clinic.value.tolist()
-    ccs_agg[str(clinic_2_hfca_id[clinic])] = (len(yy)/6 + 1)*[0]
-    ccs_orig[str(clinic_2_hfca_id[clinic])] = yy
+
+    # the following lines ensure that all missing dates are filled in w/ nans
+    # and all dates are sorted chronologically    
+    tt_yy = zip(tt, yy)
+    tt_yy.sort(key=lambda(x): x[0])
+    
+    tt.sort()
+    
+    start_date = min(tt)
+    end_date = max(tt)
+    
+    num_days = ((end_date - start_date)/np.timedelta64(1,'D')).astype(int)
+    tt_full = [start_date + timedelta(days = d) for d in range(0, num_days+1)]
+
+    tt_yy_full = len(tt_full)*[0]
+    
+    for i,t in enumerate(tt_full):
+        if t in tt:
+            if clinic_2_hfca_id[clinic] == 81111 and i == 0: # manually removing a strange NA value at the first date of 81111 reports
+                tt_yy_full[i] = (str(t),'nan')
+            else:
+                tt_yy_full[i] = (str(t), tt_yy[tt.index(t)][1])
+        else: 
+            tt_yy_full[i] = (str(t),'nan')
+        
+    
+    ccs_agg[str(clinic_2_hfca_id[clinic])] = (len(tt_yy_full)/(6*7) + 1)*[0]
+    ccs_orig[str(clinic_2_hfca_id[clinic])] = tt_yy_full
     
     cases_per_period = 0.0
-    periods = 0
-    nans_present = 0
-    
-    if clinic_2_hfca_id[clinic] == 81111:
-        yy[0] = 0 # removing a NaN value
-        print tt[0]
-        print tt[-1]
-    
-    for i,value in enumerate(yy):
+    periods = 0    
+    all_nans = True
+    for i, (date, cases) in enumerate(tt_yy_full):
         
-        # WE NEED A MORE THROUGH WAY TO DETECT NaNs
-        
-        if not is_number(value):
-            value = 'nan'
-            nans_present = nans_present + 1
-        else:
-            cases_per_period = cases_per_period + value
+        if not cases == 'nan':
+            cases_per_period = cases_per_period + cases
+            all_nans = False
             
-        if (i+1) % 6 == 0 or (i+1) == len(yy):
-            if cases_per_period == 0.0 and nans_present > 0:
-               cases_per_period = 'nan'
+        if (i+1) % (6*7) == 0 or (i+1) == len(tt_yy_full):
+            if all_nans:
+                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),'nan')
+            else:
+                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period)
             
-            ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = cases_per_period
             cases_per_period = 0.0
             periods = periods + 1
-            nans_present = 0
+            all_nans = True
     
     #plt.bar(tt,yy,width=6,color='gray',edgecolor='gray', linewidth=0)
     
@@ -129,6 +146,7 @@ for i,clinic in enumerate(clinics):
     
 with open('cc.json','w') as cc_f:
     json.dump(ccs_agg, cc_f, indent = 2)
+
 
 with open('cc_orig.json','w') as cc_f:
     json.dump(ccs_orig, cc_f, indent = 2)

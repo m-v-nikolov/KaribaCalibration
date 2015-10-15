@@ -2,7 +2,7 @@ import pandas as pd
 import json
 from nodenames import *
     
-prevalence_info_file = 'reference_data_scripts/prevalence_net-use_service-use_by_new_cluster_waves1-6.csv'
+prevalence_info_file = 'prevalence_net-use_service-use_by_new_cluster_waves1-6.csv'
 df=pd.read_csv(prevalence_info_file)
 by_cluster = df.groupby('cluster.id')
 clusters = node_names.values() # cluster_ids

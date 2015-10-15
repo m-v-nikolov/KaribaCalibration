@@ -31,9 +31,17 @@ debug_flag = True
 verbosity_flag = False
 warnings_flag = True
 
+calib_node_pop= 1000 
+
 num_procs = 2
 
-cc_penalty_model = 'trunc_ls_norm'
+cc_weight = 0.0005
+reinf_weight = 0
+
+#cc_penalty_model = 'trunc_ls_norm'
+cc_penalty_model = 'corr_prev_cc_weighted_' + str(cc_weight)
+cc_agg_period = 6 # weeks
+cc_correction_factor = 0.3
 
 traces_plots_dir = 'prev_traces'
 traces_base_file_name = 'prev_trace_'
@@ -47,8 +55,10 @@ err_surfaces_base_file_name = 'surf_'
 
 cc_sim_start_date = datetime(2005,1,1)
 cc_ref_start_date = datetime(2010,5,24)
-#cc_ref_end_date = datetime(2015,7,20)
-cc_ref_end_date = datetime(2012,12,17)
+cc_ref_end_date = datetime(2015,7,20)
+#cc_ref_end_date = datetime(2012,12,17)
+
+
 
 ref_data_dir = 'reference_data_scripts'
 sim_data_dir = 'sim_data'
@@ -60,6 +70,8 @@ all_fits_file =  cc_penalty_model + '_all_fits.json'
 
 
 # VISUALIZATION SETTINGS
+subopt_plots_threshold = 0.1 # only plot traces, surfaces that are suboptimal (when required) if the corresponding fit is within some fraction of the optimal (e.g. 0.1)
+
 root_viz_dir = 'visualization'
 kariba_viz_dir = os.path.join(root_viz_dir, 'kariba_viz')
 d3js_src_dir = 'C:\\Users\\Mnikolov\\workspace\\KaribaCalibrationDashboard'
@@ -87,8 +99,12 @@ d3js_src_files = [
 gazetteer_params_file_name = 'gazetteer.json'
 gazetteer_params_header_file_name = 'gazetteer_header.json'
 gazetteer_base_map_file_name = 'map.json'
-gazetteer_sim_mn_base_map_file_name = 'sim_mn_map.json'
+gazetteer_sim_mn_base_map_file_name = cc_penalty_model + '_mn_map.json'
  
+markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p', '*', 'h', 'H', '+', 'x', 'd', '|', '_']
+
+opt_marker = 'D'
+opt_marker_size = 40  
 
 
 def hfca_id_2_facility(hfca_id):
@@ -128,6 +144,14 @@ def cluster_2_pops(cluster_id):
     else:
         return None
 
+
+def hfca_2_pop(hfca_id):
+    with open(os.path.join(ref_data_dir, 'hfcas_pops.json'), 'r') as hfcas_pops_f:
+        hfcas_pops = json.load(hfcas_pops_f)
+    if hfca_id in hfcas_pops:
+        return hfcas_pops[hfca_id]
+    else:
+        return None
 
 
 def cluster_2_pilot_prev(cluster_id):

@@ -76,7 +76,7 @@ def multi_proc_run(sweep_name, sweep, command):
 
 if __name__ == '__main__':
     
-    sweep_name = 'cc_' + cc_penalty_model + '_categories_weather_pilot'
+    sweep_name = cc_penalty_model + '_categories_weather_pilot'
     
     sweep =  {              
               
@@ -127,7 +127,7 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
-    #multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
+    multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
     best_fits = {}
@@ -159,7 +159,7 @@ if __name__ == '__main__':
         
     print "Stored best fit parameters json file to " + best_fits_file + " in " + root_sweep_dir
     
-    #multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
+    multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
     
     print "Generating gazetteer"

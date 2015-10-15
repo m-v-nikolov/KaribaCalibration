@@ -3,7 +3,7 @@ import os
 import json
 from datetime import datetime,timedelta
 
-from kariba_settings import cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file
+from kariba_settings import hfca_2_pop, cc_correction_factor, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file
 
 from utils import warn_p, debug_p
 
@@ -68,44 +68,55 @@ def combine_tags_reports(base_dirs, output_dir):
 
 
 def cc_data_aggregate(model_clinical_cases, cluster_id):
-    #debug_p('model cc input cc_aggregate ' + str(len(model_clinical_cases)))
+    
     # aggregate on a periodic basis to as many values as there are in the ref data
-    ccs_ref_agg = cluster_2_cc(cluster_id)                               
-    #debug_p('ref cc input cc_aggregate ' + str(len(ccs_ref_agg)))         
+    ccs_ref_agg = cluster_2_cc(cluster_id)                                        
     ccs_model_agg = []
     ccs_ref_agg_cleaned = []
     
-    sim_start_date = cc_sim_start_date
-    ref_start_date = cc_ref_start_date
-    ref_end_date = cc_ref_end_date
+    hfca_id = cluster_id.split('_')[0]
+    
+    hfca_pop = hfca_2_pop(hfca_id)
+    
+    pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
+    
+    dates, cases = zip(*ccs_ref_agg)
+    
+    #sim_start_date = cc_sim_start_date
+    #ref_start_date = cc_ref_start_date
+    #ref_end_date = cc_ref_end_date
+    
+    ref_start_date = min(dates)
+    ref_end_date = max(dates)
+    
+    # note: assume the simulation has started more than 6 weeks before clinical cases collection;
+    # this should always be the case for a well tempered simulation
+    sim_start_date = ref_start_date - timedelta(6*7)
     
     ccs_model = []
     cur_date = sim_start_date         
            
-    for i,value in enumerate(model_clinical_cases):
+    for i,cases in enumerate(model_clinical_cases):
         if i > 0:
             cur_date = cur_date+timedelta(days = 1)
             
-        if cur_date >= ref_start_date and cur_date <= ref_end_date:
-            ccs_model.append(value)
+        if cur_date >= sim_start_date and cur_date <= ref_end_date:
+            ccs_model.append((cur_date, cases))
             
             
     cases_period = 0.0
     periods = 0
-    for i, value in enumerate(ccs_model):
-        cases_period = cases_period + value
+    for i, (date, cases) in enumerate(ccs_model):
+        cases_period = cases_period + cases
         if (i+1) % (6*7) == 0 or (i+1) == len(ccs_model):
             if periods < len(ccs_ref_agg): 
-                if not ccs_ref_agg[periods] == 'nan': 
-                    ccs_model_agg.append(cases_period)
-                    ccs_ref_agg_cleaned.append(ccs_ref_agg[periods])
+                if not ccs_ref_agg[periods][1] == 'nan': 
+                    ccs_model_agg.append(date, cases_period*pop_norm_factor)
                     cases_period = 0.0
                     periods = periods + 1
+                else:
+                    ccs_model_agg.append(date, 'nan')
             else:
                 break
-    
-    
-    #debug_p('model cc output cc_aggregate ' + str(len(ccs_model_agg)))
-    #debug_p('ref cc output cc_aggregate ' + str(len(ccs_ref_agg_cleaned)))        
-    
-    return ccs_model_agg, ccs_ref_agg_cleaned 
+            
+    return ccs_model_agg, ccs_ref_agg 

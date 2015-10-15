@@ -4,7 +4,8 @@ import shutil as sh
 
 from utils import warn_p, debug_p, verbose_p, json_list_update
 
-from kariba_settings import sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file
+from kariba_settings import cc_weight, reinf_weight, sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file,\
+    cc_penalty_model
 
 
 class VizConfig():
@@ -59,6 +60,8 @@ class VizConfig():
                 entry_str = entry_str + '[' + str(min_val) + ', ' + str(max_val) + ']'
         
             entry_str = entry_str + "<br />"
+            
+        entry_str = entry_str + cc_penalty_model + "; " + "w_cc=" + str(cc_weight) + " w_reinf=" + str(reinf_weight) + "<br />"
 
         gazetteer_nav_entry['name'] = entry_str
         
@@ -83,6 +86,8 @@ class VizConfig():
         for param, values in tags_data.iteritems():
             
             gazeteer_header = gazeteer_header + param + ":<br />"
+            
+        gazeteer_header = gazeteer_header + "Comment:<br />"
             
         with open(gazeteer_header_file_path, 'w') as gh_f:
             json.dump(gazeteer_header, gh_f)              
