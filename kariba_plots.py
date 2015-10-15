@@ -47,7 +47,22 @@ if __name__ == '__main__':
         
         #create respective figure dirs if not existing; 
         
+        
         # create clinical cases plots directory if it doesn't exist
+        cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_subopt_traces_plots_dir)
+        if not os.path.exists(cc_plots_dir):
+            print "Creating clinical incidence directory " + str(cc_plots_dir)
+            os.mkdir(cc_plots_dir)
+        
+        print "Plotting per cluster clinical cases best fit along with suboptimal fits for category " + category
+        print "Plots stored in "  + cc_plots_dir
+        
+        pp.plot_calib_cc_traces_clusters_opt_neigh()
+        
+        print "Plotting clinical cases done for category " + category
+        
+        
+        # create clinical cases plots with suboptimal plots directory if it doesn't exist
         cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_traces_plots_dir)
         if not os.path.exists(cc_plots_dir):
             print "Creating clinical incidence directory " + str(cc_plots_dir)
@@ -59,7 +74,6 @@ if __name__ == '__main__':
         pp.plot_calib_cc_traces_clusters()
         
         print "Plotting clinical cases done for category " + category
-        
         
         # create err surfaces plots directory if it doesn't exist
         err_plots_dir = os.path.join(viz_root_sweep_dir, err_surfaces_plots_dir)

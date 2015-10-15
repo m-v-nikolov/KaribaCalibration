@@ -39,15 +39,16 @@ cc_weight = 0.0005
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'corr_prev_cc_weighted_' + str(cc_weight)
+cc_penalty_model = 'test_corr_prev_cc_weighted_' + str(cc_weight)
 cc_agg_period = 6 # weeks
-cc_correction_factor = 0.3
+cc_correction_factor = 0.33
 
 traces_plots_dir = 'prev_traces'
 traces_base_file_name = 'prev_trace_'
 
 cc_traces_plots_dir = 'cc_traces'
 cc_traces_base_file_name = 'cc_trace_'
+cc_subopt_traces_plots_dir = 'cc_traces_subopt'
 
 err_surfaces_plots_dir = 'err_surfaces'
 err_surfaces_base_file_name = 'surf_'

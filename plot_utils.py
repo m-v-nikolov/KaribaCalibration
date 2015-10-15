@@ -24,7 +24,7 @@ from utils import warn_p, debug_p
 
 from surv_data_2_ref import surv_data_2_ref as d2f
 
-from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
+from kariba_settings import cc_subopt_traces_plots_dir, opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
 from kariba_utils import cc_data_aggregate
 
 class PlotUtils():
@@ -454,7 +454,7 @@ class PlotUtils():
                     marker = self.fit_entries_2_markers[sim_key]
                     
                 if rho and p_val:
-                    ax.plot(mod_dates, mod_cases, alpha=0.75, linewidth=2.0, marker = marker, 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h) + 'rho=' + str(rho) + ', p-val=' + str(p_val))
+                    ax.plot(mod_dates, mod_cases, alpha=0.75, linewidth=2.0, marker = marker, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h) + 'rho=' + str(rho) + ', p-val=' + str(p_val))
                 else:
                     ax.plot(mod_dates, mod_cases, alpha=0.75, linewidth=2.0, marker = marker, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h)) 
                 ax.bar(ref_dates, ref_cases, width=12,color='red',edgecolor='red', linewidth=0, label = 'Observed in ' + facility)
@@ -467,6 +467,6 @@ class PlotUtils():
             plt.gca().tick_params(axis='x', labelsize=8)
             plt.gca().tick_params(axis='y', labelsize=8)
             plt.tight_layout()
-            output_plot_file_path = os.path.join(self.root_sweep_dir, cc_traces_plots_dir, cc_traces_base_file_name + cluster_id + '.png')
+            output_plot_file_path = os.path.join(self.root_sweep_dir, cc_subopt_traces_plots_dir, cc_traces_base_file_name + cluster_id + '.png')
             plt.savefig(output_plot_file_path, format='png')
             plt.close()

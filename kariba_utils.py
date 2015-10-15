@@ -1,6 +1,7 @@
 import ast
 import os
 import json
+import pandas as pd
 from datetime import datetime,timedelta
 
 from kariba_settings import hfca_2_pop, cc_correction_factor, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file
@@ -79,19 +80,22 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     hfca_pop = hfca_2_pop(hfca_id)
     
     pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
-    
+    debug_p('pop of hfca ' + hfca_id + ' is ' + str(hfca_pop))
+    debug_p('pop norm factor for cluster ' + cluster_id + ' is ' + str(pop_norm_factor))
     dates, cases = zip(*ccs_ref_agg)
     
     #sim_start_date = cc_sim_start_date
     #ref_start_date = cc_ref_start_date
     #ref_end_date = cc_ref_end_date
-    
-    ref_start_date = min(dates)
-    ref_end_date = max(dates)
+
+    #ref_start_date = max(min(dates),cc_ref_start_date) 
+    #ref_end_date = min(max(dates) ,cc_ref_end_date)
+    ref_start_date = pd.to_datetime(min(dates)) 
+    ref_end_date = pd.to_datetime(max(dates))
     
     # note: assume the simulation has started more than 6 weeks before clinical cases collection;
     # this should always be the case for a well tempered simulation
-    sim_start_date = ref_start_date - timedelta(6*7)
+    sim_start_date = ref_start_date - timedelta(days = 6*7 - 1) 
     
     ccs_model = []
     cur_date = sim_start_date         
@@ -109,13 +113,16 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     for i, (date, cases) in enumerate(ccs_model):
         cases_period = cases_period + cases
         if (i+1) % (6*7) == 0 or (i+1) == len(ccs_model):
-            if periods < len(ccs_ref_agg): 
+            if periods < len(ccs_ref_agg):
+                ccs_ref_agg[periods][0] = str(ccs_ref_agg[periods][0]) 
                 if not ccs_ref_agg[periods][1] == 'nan': 
-                    ccs_model_agg.append(date, cases_period*pop_norm_factor)
-                    cases_period = 0.0
-                    periods = periods + 1
+                    ccs_model_agg.append((str(date), cases_period*pop_norm_factor))
                 else:
-                    ccs_model_agg.append(date, 'nan')
+                    ccs_model_agg.append((str(date), 'nan'))
+                
+                cases_period = 0.0
+                periods = periods + 1
+                    
             else:
                 break
             
