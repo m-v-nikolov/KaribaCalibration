@@ -80,13 +80,17 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     hfca_pop = hfca_2_pop(hfca_id)
     
     pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
-    debug_p('pop of hfca ' + hfca_id + ' is ' + str(hfca_pop))
-    debug_p('pop norm factor for cluster ' + cluster_id + ' is ' + str(pop_norm_factor))
+    #pop_norm_factor = 1
+    #debug_p('pop of hfca ' + hfca_id + ' is ' + str(hfca_pop))
+    #debug_p('pop norm factor for cluster ' + cluster_id + ' is ' + str(pop_norm_factor))
     dates, cases = zip(*ccs_ref_agg)
     
-    #sim_start_date = cc_sim_start_date
-    #ref_start_date = cc_ref_start_date
-    #ref_end_date = cc_ref_end_date
+    
+    sim_start_date = cc_sim_start_date
+    '''
+    ref_start_date = cc_ref_start_date
+    ref_end_date = cc_ref_end_date
+    '''
 
     #ref_start_date = max(min(dates),cc_ref_start_date) 
     #ref_end_date = min(max(dates) ,cc_ref_end_date)
@@ -95,7 +99,7 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     
     # note: assume the simulation has started more than 6 weeks before clinical cases collection;
     # this should always be the case for a well tempered simulation
-    sim_start_date = ref_start_date - timedelta(days = 6*7 - 1) 
+    sim_ref_start_date = ref_start_date - timedelta(days = 6*7 - 1) 
     
     ccs_model = []
     cur_date = sim_start_date         
@@ -104,7 +108,7 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
         if i > 0:
             cur_date = cur_date+timedelta(days = 1)
             
-        if cur_date >= sim_start_date and cur_date <= ref_end_date:
+        if cur_date >= sim_ref_start_date and cur_date <= ref_end_date:
             ccs_model.append((cur_date, cases))
             
             
@@ -126,4 +130,20 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
             else:
                 break
             
-    return ccs_model_agg, ccs_ref_agg 
+    return ccs_model_agg, ccs_ref_agg
+
+
+def cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id):
+    
+    ccs_model_agg_clean = [] 
+    ccs_ref_agg_clean = []
+    count_nans = 0
+    
+    for i,(date, cases) in enumerate(ccs_ref_agg):
+        if not cases == 'nan':
+            ccs_model_agg_clean.append(ccs_model_agg[i][1])
+            ccs_ref_agg_clean.append(cases)
+        else:
+            count_nans = count_nans + 1
+
+    return ccs_model_agg_clean, ccs_ref_agg_clean 

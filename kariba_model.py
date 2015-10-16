@@ -8,7 +8,7 @@ from utils import is_number, val_scale, feature_scale, warn_p, debug_p
 from sim_data_2_models import sim_channels_2_model, sim_report_channels_model_format
 
 from kariba_settings import cc_correction_factor, cc_weight, reports_channels, calib_node_pop, cluster_2_pops, hfca_2_pop, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import cc_data_aggregate, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
+from kariba_utils import cc_data_nan_clean, cc_data_aggregate, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
 
 
 class KaribaModel:
@@ -161,57 +161,27 @@ class KaribaModel:
     def get_ref_avg_reinfection_rate(self):
         self.ref_avg_reinfection_rate
 
-        
-    def cc_data_nan_clean(self, ccs_model_agg, ccs_ref_agg, cluster_id):
-        
-        ccs_model_agg_clean = [] 
-        ccs_ref_agg_clean = []
-        count_nans = 0
-        '''
-        debug_p('SAVING CLEANED MODEL AND REFERENCE CLINICAL CASES')
-        debug_cc = {}
-        debug_cc[cluster_id] = {}
-        ''' 
-        
-        for i,(date, cases) in enumerate(ccs_ref_agg):
-            if not cases == 'nan':
-                ccs_model_agg_clean.append(ccs_model_agg[i][1])
-                ccs_ref_agg_clean.append(cases)
-            else:
-                count_nans = count_nans + 1
-        '''
-        debug_p('nans found during cleaning ' + cluster_id + ': ' +str(count_nans))
-        debug_p('len cleaned ref cc agg for cluster ' + cluster_id + ': ' +str(len(ccs_ref_agg_clean)))
-        debug_p('len cleaned model cc agg for cluster ' + cluster_id + ': ' +str(len(ccs_model_agg_clean)))
-        debug_p('len prior cleaning ref cc agg for cluster ' + cluster_id + ': ' +str(len(ccs_ref_agg)))
-        debug_p('len prior cleaning model cc agg for cluster ' + cluster_id + ': ' +str(len(ccs_model_agg)))
-        
-        debug_cc[cluster_id]['model'] = ccs_model_agg_clean
-        debug_cc[cluster_id]['ref'] = ccs_ref_agg_clean
-        
-        with open('cc_agg_debug_cleaned.json','w') as ccd_f:
-            json.dump(debug_cc, ccd_f, indent = 4)     
-        '''     
-        return ccs_model_agg_clean, ccs_ref_agg_clean
-    
-    
     
     def set_clinical_cases_penalty_by_corr(self, model_clinical_cases, cluster_id):
 
         ccs_model_agg, ccs_ref_agg = cc_data_aggregate(model_clinical_cases, cluster_id)
         
-        '''
-        debug_p('SAVING MODEL AND REFERENCE CLINICAL CASES')
-        debug_cc = {}
-        debug_cc[cluster_id] = {}
-        debug_cc[cluster_id]['model'] = ccs_model_agg
-        debug_cc[cluster_id]['ref'] = ccs_ref_agg
+        cc_debug_agg = {}
+        cc_debug_agg['model'] = ccs_model_agg
+        cc_debug_agg['ref'] = ccs_ref_agg
          
-        with open('cc_agg_debug.json','w') as ccd_f:
-            json.dump(debug_cc, ccd_f, indent = 4)
-        '''
-                                        
-        ccs_model_agg, ccs_ref_agg = self.cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
+        with open('cc_debug_agg_'+cluster_id+'.json' ,'w') as ccd_f:
+            json.dump(cc_debug_agg, ccd_f)
+        
+                                     
+        ccs_model_agg, ccs_ref_agg = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
+        
+        cc_debug_agg_clean = {}
+        cc_debug_agg_clean['model_clean'] = ccs_model_agg
+        cc_debug_agg_clean['ref_clean'] = ccs_ref_agg
+         
+        with open('cc_debug_agg_clean'+cluster_id+'.json' ,'w') as ccd_f:
+            json.dump(cc_debug_agg_clean, ccd_f)
     
         rho, p = spearmanr(ccs_ref_agg, ccs_model_agg)
         

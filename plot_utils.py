@@ -2,6 +2,7 @@ import os
 import sys
 
 import numpy as np
+import pandas as pd
 
 from scipy import interpolate
 from scipy.interpolate import Rbf
@@ -25,7 +26,7 @@ from utils import warn_p, debug_p
 from surv_data_2_ref import surv_data_2_ref as d2f
 
 from kariba_settings import cc_subopt_traces_plots_dir, opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import cc_data_aggregate
+from kariba_utils import cc_data_aggregate, cc_data_nan_clean
 
 class PlotUtils():
     
@@ -285,7 +286,7 @@ class PlotUtils():
             opt_cc_trace = self.calib_data[opt_group_key][opt_sim_key]['cc']
             
             ccs_model_agg, ccs_ref_agg = cc_data_aggregate(opt_cc_trace, cluster_id)
-            
+            ccs_model_agg, ccs_ref_agg  = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
             #debug_p('model length ' + str(len(ccs_model_agg)))
             #debug_p('ref length ' + str(len(ccs_ref_agg)))
             
@@ -296,7 +297,7 @@ class PlotUtils():
             ref_start_date = cc_ref_start_date
             ref_end_date = cc_ref_end_date
             
-            
+            '''
             cur_date = ref_start_date         
             dates = [cur_date]       
             
@@ -304,7 +305,7 @@ class PlotUtils():
                 if i > 0:
                     cur_date = cur_date+timedelta(days = 6*7)
                     dates.append(cur_date)
-            
+            '''
             gs = gridspec.GridSpec(1, 4)
             ymax = 16
         
@@ -334,6 +335,34 @@ class PlotUtils():
                 opt_p_val = cluster_record['p_val']
             
             
+            '''
+            mod_dates, mod_cases = zip(*ccs_model_agg)
+            ref_dates, ref_cases = zip(*ccs_ref_agg)
+            
+            debug_p('model dates to print ' + str(mod_dates))
+            debug_p('model cases to print ' + str(mod_cases))
+
+            debug_p('ref dates to print ' + str(ref_dates))
+            debug_p('ref cases to print ' + str(ref_cases))
+            '''
+            '''
+            if opt_rho and opt_p_val:
+                ax.plot(pd.to_datetime(mod_dates), mod_cases, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn) + ', rho=' + str(opt_rho) + ', p-val=' + str(opt_p_val), marker = opt_marker, markersize = opt_marker_size)
+            else:
+                ax.plot(pd.to_datetime(mod_dates), mod_cases, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn), marker = opt_marker, markersize = opt_marker_size)
+            ax.bar(pd.to_datetime(ref_dates), ref_cases, width=12,color='red',edgecolor='red', linewidth=0, label = 'Observed in ' + facility)
+            '''
+            
+            if opt_rho and opt_p_val:
+                ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn) + ', rho=' + str(opt_rho) + ', p-val=' + str(opt_p_val), marker = opt_marker, markersize = opt_marker_size)
+            else:
+                ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn), marker = opt_marker, markersize = opt_marker_size)
+            ax.plot(range(0, len(ccs_ref_agg)), ccs_ref_agg, alpha=1, linewidth=2.0, c = 'red', label = 'Observed in ' + facility)
+            
+            #ax.bar(range(0, len(ccs_ref_agg)), ccs_ref_agg, width=12,color='red',edgecolor='red', linewidth=0, label = 'Observed in ' + facility)
+            
+            
+            '''
             opt_prev_trace = self.calib_data[opt_group_key][opt_sim_key]['prevalence']
             if opt_rho and opt_p_val:
                 ax.plot(dates, ccs_model_agg, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn) + ', rho=' + str(opt_rho) + ', p-val=' + str(opt_p_val))
@@ -341,6 +370,7 @@ class PlotUtils():
                 ax.plot(dates, ccs_model_agg, alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn))
             ax.bar(dates, ccs_ref_agg, width=12,color='red',edgecolor='red', linewidth=0, label = 'Observed in ' + facility)
             #ax.plot(dates, ccs_ref_agg, alpha=1, linewidth=2.0, c = 'red', label = 'Observed in ' + facility)
+            '''
             
             plt.xlabel('Time (6-week bins)', fontsize=8)
             plt.ylabel('Clinical cases', fontsize=8)

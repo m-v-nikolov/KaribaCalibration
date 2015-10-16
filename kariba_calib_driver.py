@@ -161,7 +161,7 @@ if __name__ == '__main__':
     
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
-    
+    '''
     print "Generating gazetteer"
     
     # combining tags reports from sweep categories
@@ -182,4 +182,5 @@ if __name__ == '__main__':
     viz_conf.generate_gazetteer_header()
     viz_conf.generate_gazetteer_map()
     
-    print "Gazetteer generated. Index file stored in " + kariba_viz_dir    
+    print "Gazetteer generated. Index file stored in " + kariba_viz_dir
+    '''    

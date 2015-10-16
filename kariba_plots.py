@@ -6,7 +6,7 @@ import gc
 from comps_2_sim_data import get_sweep_results, combine_sweep_results
 from sim_data_2_models import calib_data_2_models_list
 
-from kariba_settings import sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir
+from kariba_settings import sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, cc_subopt_traces_plots_dir, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir
 from kariba_fit import KaribaFit
 from plot_utils import PlotUtils
 
@@ -49,6 +49,7 @@ if __name__ == '__main__':
         
         
         # create clinical cases plots directory if it doesn't exist
+        '''
         cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_subopt_traces_plots_dir)
         if not os.path.exists(cc_plots_dir):
             print "Creating clinical incidence directory " + str(cc_plots_dir)
@@ -60,7 +61,7 @@ if __name__ == '__main__':
         pp.plot_calib_cc_traces_clusters_opt_neigh()
         
         print "Plotting clinical cases done for category " + category
-        
+        '''
         
         # create clinical cases plots with suboptimal plots directory if it doesn't exist
         cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_traces_plots_dir)

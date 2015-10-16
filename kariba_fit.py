@@ -26,6 +26,7 @@ class KaribaFit:
         best_fits = {}
         all_fits = {}
         debug_p('category ' + self.category)
+        
         for idx,cluster_id in enumerate(c2c(self.category)):
             
             print "Processing cluster " + cluster_id + "."
@@ -130,5 +131,5 @@ class KaribaFit:
             '''
             if idx > 0:
                 break 
-            '''            
+            '''         
         return best_fits, all_fits

@@ -35,7 +35,8 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.0005
+cc_weight = 0.00125
+#cc_weight = 100
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
@@ -105,7 +106,7 @@ gazetteer_sim_mn_base_map_file_name = cc_penalty_model + '_mn_map.json'
 markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p', '*', 'h', 'H', '+', 'x', 'd', '|', '_']
 
 opt_marker = 'D'
-opt_marker_size = 40  
+opt_marker_size = 6  
 
 
 def hfca_id_2_facility(hfca_id):
