@@ -6,14 +6,20 @@ class Fit:
     def __init__(self, fitting_set, type = 'mmse_distance'):
         self.fitting_set = fitting_set
         self.type = type
-        
+        self.min_residual = float('inf')
+        self.max_residual = 0.0
     
     def get_type(self):
         return self.type
     
     def set_type(self, type):
         self.type = type
-        
+    
+    def get_min_residual(self):
+        return self.min_residual
+    
+    def get_max_residual(self):
+        return self.max_residual
     
     def fit(self):
         
@@ -67,6 +73,14 @@ class Fit:
                         distance  = distance + obj.get_weight()*(mse + obj.get_model_penalty())
             
             if distance:
+                
+                # a bit redundant since we also find mmse_distance; will need to adjust
+                if distance < self.min_residual:
+                    self.min_residual = distance
+                    
+                if distance > self.max_residual:
+                    self.max_residual = distance
+                    
                 if distance <= mmse_distance:
                    ''' 
                    debug_p('current best distance ' + str(mmse_distance))

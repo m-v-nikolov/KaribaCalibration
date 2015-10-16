@@ -79,8 +79,8 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     
     hfca_pop = hfca_2_pop(hfca_id)
     
-    pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
-    #pop_norm_factor = 1
+    #pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
+    pop_norm_factor = 1
     #debug_p('pop of hfca ' + hfca_id + ' is ' + str(hfca_pop))
     #debug_p('pop norm factor for cluster ' + cluster_id + ' is ' + str(pop_norm_factor))
     dates, cases = zip(*ccs_ref_agg)

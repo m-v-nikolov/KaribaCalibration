@@ -166,22 +166,26 @@ class KaribaModel:
 
         ccs_model_agg, ccs_ref_agg = cc_data_aggregate(model_clinical_cases, cluster_id)
         
+        '''
         cc_debug_agg = {}
         cc_debug_agg['model'] = ccs_model_agg
         cc_debug_agg['ref'] = ccs_ref_agg
          
         with open('cc_debug_agg_'+cluster_id+'.json' ,'w') as ccd_f:
-            json.dump(cc_debug_agg, ccd_f)
-        
+            json.dump(cc_debug_agg, ccd_f, indent=3)
+        '''
                                      
         ccs_model_agg, ccs_ref_agg = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
         
+        '''
         cc_debug_agg_clean = {}
         cc_debug_agg_clean['model_clean'] = ccs_model_agg
         cc_debug_agg_clean['ref_clean'] = ccs_ref_agg
          
+        
         with open('cc_debug_agg_clean'+cluster_id+'.json' ,'w') as ccd_f:
-            json.dump(cc_debug_agg_clean, ccd_f)
+            json.dump(cc_debug_agg_clean, ccd_f, indent=3)
+        '''
     
         rho, p = spearmanr(ccs_ref_agg, ccs_model_agg)
         

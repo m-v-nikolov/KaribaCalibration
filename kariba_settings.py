@@ -49,7 +49,6 @@ traces_base_file_name = 'prev_trace_'
 
 cc_traces_plots_dir = 'cc_traces'
 cc_traces_base_file_name = 'cc_trace_'
-cc_subopt_traces_plots_dir = 'cc_traces_subopt'
 
 err_surfaces_plots_dir = 'err_surfaces'
 err_surfaces_base_file_name = 'surf_'
@@ -64,6 +63,7 @@ cc_ref_end_date = datetime(2015,7,20)
 
 ref_data_dir = 'reference_data_scripts'
 sim_data_dir = 'sim_data'
+residuals_file = 'residuals'
 calibration_data_file = 'calibration_cc.json'
 tags_data_file = 'tags.json'
 tags_report_data_file = 'tags_report.json'

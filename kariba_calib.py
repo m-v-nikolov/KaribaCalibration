@@ -6,7 +6,7 @@ import gc
 from comps_2_sim_data import get_sweep_results, combine_sweep_results
 from sim_data_2_models import calib_data_2_models_list
 
-from kariba_settings import sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, cc_penalty_model
+from kariba_settings import sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, residuals_file, cc_penalty_model
 from kariba_fit import KaribaFit
 
 
@@ -53,7 +53,7 @@ def calibrate(category, sweep_dir):
         
     # go through all fit models, extract params for each
     fit_entries = {}
-    for cluster_id, models in all_fits.iteritems():
+    for cluster_id, models in all_fits['models'].iteritems():
         fit_entries[cluster_id] = []
         for model in models:
             fit_entries[cluster_id].append(model.fit_entry())
@@ -63,7 +63,13 @@ def calibrate(category, sweep_dir):
     with open(all_fits_f_path, 'w') as all_fits_f:
         json.dump(fit_entries, all_fits_f, indent = 4)
         
-    return best_fits, all_fits
+    residuals = {'min_residual':all_fits['min_residual'], 'max_residual':all_fits['max_residual']}
+    
+    residuals_f_path = os.path.join(sweep_dir, residuals_file)
+    with open(residuals_f_path, 'w') as res_f:
+        json.dump(residuals, res_f, indent = 2)
+    
+    return best_fits, all_fits, residuals
     
 
 
@@ -87,7 +93,7 @@ if __name__ == '__main__':
         all_fits = None
         
         # only calibrate if needed otherwise comment out 
-        best_fits, all_fits = calibrate(category, sweep_dir)
+        best_fits, all_fits, residuals = calibrate(category, sweep_dir)
         
         
         # generate plots

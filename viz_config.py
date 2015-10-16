@@ -4,7 +4,7 @@ import shutil as sh
 
 from utils import warn_p, debug_p, verbose_p, json_list_update
 
-from kariba_settings import cc_weight, reinf_weight, sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file,\
+from kariba_settings import ref_data_dir, cc_weight, reinf_weight, sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file,\
     cc_penalty_model
 
 
@@ -96,7 +96,7 @@ class VizConfig():
 
     def generate_gazetteer_map(self):
         
-        gazetteer_base_map_file_path = os.path.join(kariba_viz_dir, gazetteer_base_map_file_name)
+        gazetteer_base_map_file_path = os.path.join(ref_data_dir, gazetteer_base_map_file_name)
         
         with open(gazetteer_base_map_file_path ,'r') as map_f:
             self.base_map = json.load(map_f)

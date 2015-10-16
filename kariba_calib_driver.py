@@ -15,7 +15,7 @@ from plot_utils import PlotUtils
 from viz_config import VizConfig
 from kariba_utils import combine_tags_reports
 
-from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir
+from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file
 
 def multi_proc_run(sweep_name, sweep, command):
     
@@ -127,16 +127,20 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
-    multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
+    #multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
     best_fits = {}
-    
+    all_fits = {}
+    residuals = {}
     # combine all categories best fits in a single file in the sweep dir folder for spatial sims
     # also, create all error surface, prevalence time_series plots if any in the root sweep dir
     print "Best fits per category found."
 
-    print "Combining per category best fits, plotting best fits and residuals, and preparing visualization."    
+    print "Combining per category best fits, all_fits, residuals; plotting best fits and residuals, and preparing d3js visualization."
+    min_residual = float('inf')
+    max_residual = 0.0
+        
     for category in sweep:
         
         sweep_dir = os.path.join(sim_data_dir,category)
@@ -146,9 +150,22 @@ if __name__ == '__main__':
             
         with open(os.path.join(sweep_dir, all_fits_file), 'r') as all_fits_f:
             all_fits_cat = json.load(all_fits_f)
-                                    
+            
+        with open(os.path.join(sweep_dir, residuals_file), 'r') as res_f:
+            res_cat = json.load(res_f)
+            
+        if res_cat['min_residual'] < min_residual:
+            min_residual = res_cat['min_residual']
+        if res_cat['max_residual'] > max_residual:
+            max_residual = res_cat['max_residual'] 
+            
+        residuals['min'] = min_residual
+        residuals['max'] = max_residual
+        
         print category + ' '  + str(len(best_fits_cat))    
+       
         best_fits.update(best_fits_cat)
+        all_fits.update(all_fits_cat)
         
         print "Best fits updated for category " + category
     
@@ -159,9 +176,15 @@ if __name__ == '__main__':
         
     print "Stored best fit parameters json file to " + best_fits_file + " in " + root_sweep_dir
     
+    with open(os.path.join(root_sweep_dir, all_fits_file), 'w') as all_fits_f:
+        json.dump(all_fits, all_fits_f, indent = 4)
+        
+    with open(os.path.join(root_sweep_dir, residuals_file), 'w') as res_f:
+        json.dump(residuals, res_f, indent = 2)
+    
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
-    '''
+    
     print "Generating gazetteer"
     
     # combining tags reports from sweep categories
@@ -183,4 +206,4 @@ if __name__ == '__main__':
     viz_conf.generate_gazetteer_map()
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
-    '''    
+        

@@ -25,6 +25,11 @@ class KaribaFit:
                 
         best_fits = {}
         all_fits = {}
+        
+        all_fits['min_residual'] = float('inf')
+        all_fits['max_residual'] = 0.0
+        all_fits['models'] = {}
+        
         debug_p('category ' + self.category)
         
         for idx,cluster_id in enumerate(c2c(self.category)):
@@ -75,6 +80,15 @@ class KaribaFit:
             
             best_fit_model = fit.best_fit_mmse_distance()
             
+            min_residual = fit.get_min_residual()
+            max_residual = fit.get_max_residual()
+            
+            if min_residual  < all_fits['min_residual']:
+                all_fits['min_residual'] = min_residual 
+                
+            if max_residual  > all_fits['max_residual']:
+                all_fits['max_residual'] = max_residual
+            
             if best_fit_model: 
             
                 model_meta_data = best_fit_model.get_meta()
@@ -123,7 +137,7 @@ class KaribaFit:
                 warn_p(msg)
                 
             
-            all_fits[cluster_id] = cluster_models
+            all_fits['models'][cluster_id] = cluster_models
             
             print str(idx+1) + " clusters have been processed."
             debug_p( str(idx+1) + " clusters have been processed in category " + self.category)
@@ -131,5 +145,5 @@ class KaribaFit:
             '''
             if idx > 0:
                 break 
-            '''         
+            '''      
         return best_fits, all_fits
