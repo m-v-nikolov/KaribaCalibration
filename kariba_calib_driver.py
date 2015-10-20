@@ -76,7 +76,9 @@ def multi_proc_run(sweep_name, sweep, command):
 
 if __name__ == '__main__':
     
-    sweep_name = cc_penalty_model + '_categories_weather_pilot'
+    sweep_name = cc_penalty_model + '_categories_weather_pilot_debug'
+    
+    
     
     sweep =  {              
               
@@ -117,6 +119,15 @@ if __name__ == '__main__':
                                   }
               }
     
+    '''
+    sweep =  {              
+           'Sinamalima_pilot':{
+                              'Sinamalima_1_node_MSAT_0.55_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.55_w_pilot_calib_90937da8-e648-e511-93f8-f0921c16849c.json'],
+                              'Sinamalima_1_node_MSAT_0.7_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.7_w_pilot_calib_8beb772d-e748-e511-93f8-f0921c16849c.json'],
+                              'Sinamalima_1_node_MSAT_0.35_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_nodeMSAT_0.35_w_pilot_calib_a433fc45-e648-e511-93f8-f0921c16849c.json']
+                              }
+              }
+    '''
     
     root_sweep_dir = os.path.join(sim_data_dir, sweep_name)
     if not os.path.exists(root_sweep_dir):
@@ -127,7 +138,8 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
-    #multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
+    
+    multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
     best_fits = {}
@@ -184,10 +196,10 @@ if __name__ == '__main__':
     
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
-    
     print "Generating gazetteer"
     
     # combining tags reports from sweep categories
+    
     
     sweep_dirs = []
     for category in sweep:
@@ -204,6 +216,7 @@ if __name__ == '__main__':
     viz_conf.generate_gazetteer()
     viz_conf.generate_gazetteer_header()
     viz_conf.generate_gazetteer_map()
+    
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
         

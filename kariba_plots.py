@@ -59,7 +59,7 @@ if __name__ == '__main__':
         print "Plotting per cluster clinical cases for category " + category
         print "Plots stored in "  + cc_plots_dir
         
-        #pp.plot_calib_cc_traces_clusters()
+        pp.plot_calib_cc_traces_clusters()
         
         print "Plotting clinical cases done for category " + category
         
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         
         print "Plotting per cluster prevalence for category " + category
         
-        #pp.plot_calib_prev_traces()
+        pp.plot_calib_prev_traces()
         
         print "Plotting prevalence traces done for category " + category 
         print "Plots stored in "  + prev_plots_dir    

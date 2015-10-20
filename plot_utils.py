@@ -30,12 +30,12 @@ from kariba_utils import cc_data_aggregate, cc_data_nan_clean
 
 class PlotUtils():
     
-    def __init__(self, best_fits, all_fits, residuals, calib_data, root_sweep_dir, category):
+    def __init__(self, best_fits, all_fits, calib_data, residuals, root_sweep_dir, category):
         
         self.best_fits = best_fits
         self.all_fits = all_fits
         self.residuals = residuals
-        debug_p(self.residuals)
+        #debug_p(self.residuals)
         self.calib_data = calib_data
         self.root_sweep_dir = root_sweep_dir
         self.category = category
@@ -151,7 +151,8 @@ class PlotUtils():
                 prev_trace = self.calib_data[group_key][sim_key]['prevalence']
                 marker = self.get_marker(sim_key, count_traces)
                 #ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h))
-                ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size)
+                #ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size)
+                ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5)
                 
                 
                 for i,prev in enumerate(obs_prevs):                    
@@ -282,15 +283,54 @@ class PlotUtils():
                     #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.cm.hot)
                     #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'), vmin=0.475, vmax=0.8)
                     #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'))
-                    rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('paired'), vmin = min_residual, vmax = max_residual)
+                    rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'), vmin = min_residual, vmax = max_residual)
                     #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.get_cmap('paired'))
                     #rmse_pl.cmap.set_over('black')
                     #rmse_pl.cmap.set_under('grey')
                     cb = plt.colorbar(rmse_pl)
 
-                    cb.set_label('Calibration-simulation distance', fontsize=8)
+                    cb.set_label('Residuals', fontsize=8)
                     cb.ax.tick_params(labelsize=8)    
-                    plt.scatter(x, y, 10, z, cmap=plt.get_cmap('paired'))
+                    #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('Paired'))
+                    
+                    level1_opt_neighs_label = False
+                    level2_opt_neighs_label = False
+                    level3_opt_neighs_label = False
+                    for i,fit_val in enumerate(z):
+                        
+                        if fit_val < opt_fit_value + opt_fit_value*subopt_plots_threshold:
+                            
+                            if not level1_opt_neighs_label:
+                                label = '< opt + 0.1opt'
+                                level1_opt_neighs_label = True
+                            else:
+                                label = None
+                            
+                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
+                            
+                            
+                        elif fit_val < opt_fit_value + 2*opt_fit_value*subopt_plots_threshold:
+                            
+                            if not level2_opt_neighs_label:
+                                label = '< opt + 0.2opt'
+                                level2_opt_neighs_label = True
+                            else:
+                                label = None
+
+                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
+                            
+                            
+                        elif fit_val < opt_fit_value + 3*opt_fit_value*subopt_plots_threshold:
+                            
+                            if not level3_opt_neighs_label:
+                                label = '< opt + 0.3opt'
+                                level3_opt_neighs_label = True
+                            else:
+                                label = None                            
+                            
+                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
+                    
+                    
                     #plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'white', backgroundcolor = scalarMap.to_rgba(scale_int[itn_levels_2_sbplts[itn_level]]))
                     plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'black')
                     plt.xlabel('All habitats scale', fontsize=8)
@@ -300,34 +340,38 @@ class PlotUtils():
                     #plt.ylim(0.01, 14)
                     plt.gca().tick_params(axis='x', labelsize=8)
                     plt.gca().tick_params(axis='y', labelsize=8)
-                
-                #plt.subplot(gs[itn_levels_2_sbplts[best_fit_itn_level], 0])
-                plt.subplot(gs[0,0])
-                
-                cluster_record = self.best_fits[cluster_id]
-                opt_itn = cluster_record['ITN_cov']
-                opt_drug = cluster_record['MSAT_cov']
-                plt.scatter(opt_x_temp_h, opt_const_h, c = 'red', marker = 'd', s = 60, facecolor='none', zorder=100, label='Best fit')
-                
-                count_traces = 0
-                for fit_entry in opt_neigh_fits:
                     
-                    x_temp_h = fit_entry['x_temp_h']
-                    const_h = fit_entry['const_h'] 
-                    sim_key = fit_entry['sim_key']
+                    '''
+                    count_traces = 0
                     
-                    marker = self.get_marker(sim_key, count_traces)
+                    for fit_entry in opt_neigh_fits:
+                        
+                        x_temp_h = fit_entry['x_temp_h']
+                        const_h = fit_entry['const_h'] 
+                        sim_key = fit_entry['sim_key']
+                        
+                        marker = self.get_marker(sim_key, count_traces)
+    
+                        plt.scatter(x_temp_h, const_h, c = 'black', marker = marker, s = 20, facecolor='none', zorder=100)
+                        
+                        count_traces = count_traces + 1
+                    '''
+                
+            #plt.subplot(gs[itn_levels_2_sbplts[best_fit_itn_level], 0])
+            plt.subplot(gs[0,0])
+            
+            cluster_record = self.best_fits[cluster_id]
+            opt_itn = cluster_record['ITN_cov']
+            opt_drug = cluster_record['MSAT_cov']
+            plt.scatter(opt_x_temp_h, opt_const_h, c = 'red', marker = 'D', s = 60, facecolor='green', zorder=100, label='Best fit')
+            #plt.annotate(opt_fit_value, opt_x_temp_h, opt_const_h)
 
-                    plt.scatter(x_temp_h, const_h, c = 'black', marker = marker, s = 20, facecolor='none', zorder=100)
-                    
-                    count_traces = count_traces + 1
+            plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=8)
                 
-                plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=8)
-                    
-                plt.tight_layout()
-                output_plot_file_path = os.path.join(self.root_sweep_dir, err_surfaces_plots_dir, err_surfaces_base_file_name + cluster_id +'.png')
-                plt.savefig(output_plot_file_path, dpi = 300, format='png')
-                plt.close()
+            plt.tight_layout()
+            output_plot_file_path = os.path.join(self.root_sweep_dir, err_surfaces_plots_dir, err_surfaces_base_file_name + cluster_id +'.png')
+            plt.savefig(output_plot_file_path, dpi = 300, format='png')
+            plt.close()
         
             count = count + 1
 
@@ -439,10 +483,11 @@ class PlotUtils():
                 
                 if rho and p_val:
                     #ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h) + 'rho=' + str(rho) + ', p-val=' + str(p_val))
-                    ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size)
+                    #ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size)
+                    ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5)
                 else:
                     #ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5, marker = marker, markersize = 0.5*opt_marker_size, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h))
-                    ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5, marker = marker, markersize = 0.5*opt_marker_size)
+                    ax.plot(range(0, len(ccs_model_agg)), ccs_model_agg, alpha=0.75, linewidth=0.5)
                 #ax.plot(range(0, len(ccs_ref_agg)), ccs_ref_agg, alpha=1, linewidth=1.0, c = 'red', label = 'Observed in ' + facility)
                 
                 count_traces = count_traces + 1    

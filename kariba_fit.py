@@ -1,3 +1,5 @@
+import copy
+
 from utils import is_number, val_scale, warn_p, debug_p
 from sim_data_2_models import calib_data_2_models_list
 from surv_data_2_ref import surv_data_2_ref as d2f
@@ -21,7 +23,7 @@ class KaribaFit:
 
     def fit(self):
         
-        models_list = calib_data_2_models_list(self.calib_data)
+        models_list_prime = calib_data_2_models_list(self.calib_data)
                 
         best_fits = {}
         all_fits = {}
@@ -33,6 +35,8 @@ class KaribaFit:
         debug_p('category ' + self.category)
         
         for idx,cluster_id in enumerate(c2c(self.category)):
+        
+            models_list = copy.deepcopy(models_list_prime)
             
             print "Processing cluster " + cluster_id + "."
             debug_p('Processing cluster ' + cluster_id + " in " + self.category + ".")
@@ -48,10 +52,10 @@ class KaribaFit:
                     #debug_p('model id before kariba conversion ' + str(model.get_model_id()))
                     group_key = model_meta['group_key']
                     sim_key = model_meta['sim_key']
-                    kariba_model = KaribaModel(model, self.calib_data[group_key][sim_key], cluster_id)
-                    model = kariba_model
+                    model = KaribaModel(model, self.calib_data[group_key][sim_key], cluster_id)
+                    #model = kariba_model
                     #debug_p('model id after kariba conversion ' + str(model.get_model_id()))
-                    cluster_models.append(kariba_model)
+                    cluster_models.append(model)
                 
             surv_data = {}
             all_ref_objs_found = True
@@ -138,6 +142,7 @@ class KaribaFit:
                 
             
             all_fits['models'][cluster_id] = cluster_models
+            #all_fits['models'][cluster_id] = fit.get_fitting_set_models()
             
             print str(idx+1) + " clusters have been processed."
             debug_p( str(idx+1) + " clusters have been processed in category " + self.category)

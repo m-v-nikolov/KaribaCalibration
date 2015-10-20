@@ -46,8 +46,8 @@ class Fit:
         
         best_fit = None
         
-        #debug_p(len(models_list))
-        
+        debug_p(len(models_list))
+        debug_p('======================================================================================')
         for model in models_list:
             
             distance = None
@@ -82,14 +82,15 @@ class Fit:
                     self.max_residual = distance
                     
                 if distance <= mmse_distance:
-                   ''' 
+                   
                    debug_p('current best distance ' + str(mmse_distance))
                    if best_fit:
-                       debug_p('current best fit model ' + str(best_fit.get_model_id()))
+                       #debug_p('current best fit model ' + str(best_fit.get_model_id()))
                        debug_p('current best fit model mmse' + str(best_fit.get_fit_val()))
-                   debug_p('model ' + str(model.get_model_id()))
+                   #debug_p('model ' + str(model.get_model_id()))
                    debug_p('improving fit ' + str(distance))
-                   '''
+                   debug_p('fit difference' + str(distance - mmse_distance))
+                   
                    mmse_distance = distance
                    model.set_fit_val(mmse_distance)
                    best_fit = model
@@ -100,8 +101,7 @@ class Fit:
         #debug_p('best_fit ' + str(best_fit))
         
         return best_fit
-            
-            
+                    
         
     def mse(self, m_points, d_points, points_weights):
         
@@ -141,4 +141,8 @@ class Fit:
         
         return None
         
-        
+    def get_fitting_set(self):
+        return self.fitting_set
+    
+    def get_fitting_set_models(self):
+        return self.fitting_set.get_models_list()    

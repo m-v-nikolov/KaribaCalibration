@@ -33,14 +33,14 @@ warnings_flag = True
 
 calib_node_pop= 1000 
 
-num_procs = 2
+num_procs = 3
 
 cc_weight = 0.00125
-#cc_weight = 100
+#cc_weight = 0
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'test_corr_prev_cc_weighted_' + str(cc_weight)
+cc_penalty_model = 'corr_norm_pop_cc_2010_2012_cc' + str(cc_weight)
 cc_agg_period = 6 # weeks
 cc_correction_factor = 0.33
 
@@ -56,8 +56,8 @@ err_surfaces_base_file_name = 'surf_'
 
 cc_sim_start_date = datetime(2005,1,1)
 cc_ref_start_date = datetime(2010,5,24)
-cc_ref_end_date = datetime(2015,7,20)
-#cc_ref_end_date = datetime(2012,12,17)
+#cc_ref_end_date = datetime(2015,7,20)
+cc_ref_end_date = datetime(2012,12,17)
 
 
 

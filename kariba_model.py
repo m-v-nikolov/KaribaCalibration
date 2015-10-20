@@ -38,14 +38,18 @@ class KaribaModel:
         model_report_channels = sim_report_channels_model_format(reports_channels, self.sim_data)
         self.set_reinfection_penalty(model_report_channels['reinfections'], cluster_id)
         
-        if 'ls_norm' in cc_penalty_model: 
-            self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], cluster_id)
-        if 'ls_no_norm' in cc_penalty_model: 
-            self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], cluster_id)
-        if 'corr' in cc_penalty_model:
-            self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], cluster_id)
+        if not cc_weight == 0:            
+            if 'ls_norm' in cc_penalty_model: 
+                self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], cluster_id)
+            if 'ls_no_norm' in cc_penalty_model: 
+                self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], cluster_id)
+            if 'corr' in cc_penalty_model:
+                self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], cluster_id)
+        else:
+            self.clinical_cases_penalty = 0.0
+            self.clinical_cases_penalty_weight = 0.0
+        
         self.set_model_penalties()
-
 
     
     # only non None if rank correlation method cc_penalty is used
@@ -209,7 +213,8 @@ class KaribaModel:
         
     def set_clinical_cases_penalty_by_ls(self, model_clinical_cases, cluster_id):
 
-        ccs_model_agg, ccs_ref_agg = self.cc_data_aggregate(model_clinical_cases, cluster_id)                               
+        ccs_model_agg, ccs_ref_agg = self.cc_data_aggregate(model_clinical_cases, cluster_id)
+        ccs_model_agg, ccs_ref_agg = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)                               
     
         max_ccs_sim = max(ccs_model_agg)
         min_ccs_sim = min(ccs_model_agg)        
@@ -232,7 +237,7 @@ class KaribaModel:
         self.clinical_cases_penalty = rmse
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
-        self.clinical_cases_penalty_weight = 100
+        #self.clinical_cases_penalty_weight = 100
         #debug_p('weighted clinical cases penalty ' + str(self.clinical_cases_penalty_weight*self.clinical_cases_penalty))
         
         
