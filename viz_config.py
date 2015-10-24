@@ -61,7 +61,7 @@ class VizConfig():
         
             entry_str = entry_str + "<br />"
             
-        entry_str = entry_str + cc_penalty_model + "; " + "w_cc=" + str(cc_weight) + " w_reinf=" + str(reinf_weight) + "<br />"
+        entry_str = entry_str + cc_penalty_model + "<br />"
 
         gazetteer_nav_entry['name'] = entry_str
         

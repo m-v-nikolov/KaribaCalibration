@@ -7,14 +7,16 @@ from utils import is_number, val_scale, feature_scale, warn_p, debug_p
 
 from sim_data_2_models import sim_channels_2_model, sim_report_channels_model_format
 
-from kariba_settings import cc_correction_factor, cc_weight, reports_channels, calib_node_pop, cluster_2_pops, hfca_2_pop, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import cc_data_nan_clean, cc_data_aggregate, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
+from kariba_settings import load_cc_penalty, load_prevalence_mse, load_reinf_penalty, cc_correction_factor, cc_agg_fold, cc_weight, reports_channels, calib_node_pop, cluster_2_pops, hfca_2_pop, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date,\
+    reinf_weight
+from kariba_utils import get_cc_model_ref_traces, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h, error_loading_fit_terms
 
 
 class KaribaModel:
     
-    def __init__(self, model, sim_data, cluster_id, reinfection_penalty = 0.0, reinfection_penalty_weight = 0.0,  clinical_cases_penalty = 0.0, clinical_cases_penalty_weight = 0.0):
+    def __init__(self, model, sim_data, cluster_id, reinfection_penalty = 0.0, reinfection_penalty_weight = 0.0,  clinical_cases_penalty = 0.0, clinical_cases_penalty_weight = 0.0, all_fits = None):
 
+        self.cluster_id = cluster_id
         self.reinfection_penalty = reinfection_penalty
         self.reinfection_penalty_weight = reinfection_penalty_weight
         self.ref_reinfection_num_points = 0
@@ -27,28 +29,73 @@ class KaribaModel:
         self.ref_clinical_cases_num_points = 0
         self.sim_data = sim_data
         
+        self.all_fits = all_fits
+        
         self.ref_avg_reinfection_rate = 0.0
         self.sim_avg_reinfection_rate = 0.0 
         
         #debug_p('model id during kariba conversion prior model assignment ' + str(model.get_model_id()))
         self.model = model
+        
+        model_meta = self.model.get_meta()
+        sim_key = model_meta['sim_key']
+        
         #debug_p('model id during kariba conversion after model assignment ' + str(self.model.get_model_id()))
         
         # get reinfection rates from sim data, compute reinfection penalty and model penalties
-        model_report_channels = sim_report_channels_model_format(reports_channels, self.sim_data)
-        self.set_reinfection_penalty(model_report_channels['reinfections'], cluster_id)
         
-        if not cc_weight == 0:            
-            if 'ls_norm' in cc_penalty_model: 
-                self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], cluster_id)
-            if 'ls_no_norm' in cc_penalty_model: 
-                self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], cluster_id)
-            if 'corr' in cc_penalty_model:
-                self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], cluster_id)
+        if not reinf_weight == 0:
+            model_report_channels = sim_report_channels_model_format(reports_channels, self.sim_data)
+            if not load_reinf_penalty:
+                self.set_reinfection_penalty(model_report_channels['reinfections'], self.cluster_id)
+            else:
+                if self.all_fits:
+                    self.reinfection_penalty = self.all_fits[self.cluster_id][sim_key]['reinf_penalty']
+                    self.reinfection_penalty_weight = reinf_weight
+                else:
+                    error_loading_fit_terms('reinfection penalty')
+                    
+        
+        if not cc_weight == 0:
+            
+            if not load_cc_penalty:
+                if 'ls_norm' in cc_penalty_model: 
+                    self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], self.cluster_id)
+                if 'ls_no_norm' in cc_penalty_model: 
+                    self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], self.cluster_id)
+                if 'corr' in cc_penalty_model:
+                    self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], self.cluster_id)
+                    
+                    
+            else:
+                
+                if self.all_fits:
+                
+                    if 'ls_norm' in cc_penalty_model: 
+                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm']
+                    elif 'ls_norm_not_folded' in cc_penalty_model:
+                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm_not_folded']
+                    
+                    if 'ls_no_norm' in cc_penalty_model: 
+                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_no_norm']
+                    if 'corr_folded' in cc_penalty_model:
+                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['penalty']
+                        self.rho = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['rho']
+                        self.p_val = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['p_val']
+                    if 'corr_not_folded' in cc_penalty_model:
+                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['penalty']
+                        self.rho = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['rho']
+                        self.p_val = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['p_val']
+                        
+                    self.clinical_cases_penalty_weight = cc_weight
+                else:
+                    error_loading_fit_terms('clinical cases penalty')
+                
         else:
             self.clinical_cases_penalty = 0.0
             self.clinical_cases_penalty_weight = 0.0
-        
+            
+                    
         self.set_model_penalties()
 
     
@@ -168,8 +215,9 @@ class KaribaModel:
     
     def set_clinical_cases_penalty_by_corr(self, model_clinical_cases, cluster_id):
 
-        ccs_model_agg, ccs_ref_agg = cc_data_aggregate(model_clinical_cases, cluster_id)
+        ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(model_clinical_cases, cluster_id)
         
+
         '''
         cc_debug_agg = {}
         cc_debug_agg['model'] = ccs_model_agg
@@ -178,8 +226,6 @@ class KaribaModel:
         with open('cc_debug_agg_'+cluster_id+'.json' ,'w') as ccd_f:
             json.dump(cc_debug_agg, ccd_f, indent=3)
         '''
-                                     
-        ccs_model_agg, ccs_ref_agg = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
         
         '''
         cc_debug_agg_clean = {}
@@ -213,8 +259,7 @@ class KaribaModel:
         
     def set_clinical_cases_penalty_by_ls(self, model_clinical_cases, cluster_id):
 
-        ccs_model_agg, ccs_ref_agg = self.cc_data_aggregate(model_clinical_cases, cluster_id)
-        ccs_model_agg, ccs_ref_agg = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)                               
+        ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(model_clinical_cases, cluster_id)                            
     
         max_ccs_sim = max(ccs_model_agg)
         min_ccs_sim = min(ccs_model_agg)        
@@ -235,6 +280,7 @@ class KaribaModel:
         #debug_p('clinical cases sum of square errors ' + str(rmse))
         
         self.clinical_cases_penalty = rmse
+        self.clinical_cases_penalty_weight = cc_weight
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
         #self.clinical_cases_penalty_weight = 100
@@ -242,12 +288,12 @@ class KaribaModel:
         
         
     def set_clinical_cases_penalty_by_ls_no_norm(self, model_clinical_cases, cluster_id):
-
-        ccs_model_agg, ccs_ref_agg = self.cc_data_aggregate(model_clinical_cases, cluster_id)                               
-            
+                                       
+        ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(model_clinical_cases, cluster_id)
+        
         sse = 0.0
         for i, value in enumerate(ccs_ref_agg):
-            se = math.pow(value - 0.3*ccs_model_agg[i], 2)
+            se = math.pow(value - ccs_model_agg[i], 2)
             sse = sse + se
             
         rmse = math.sqrt(sse/(len(ccs_ref_agg)+0.0))
@@ -260,8 +306,7 @@ class KaribaModel:
         self.clinical_cases_penalty_weight = 100
         #debug_p('weighted clinical cases penalty ' + str(self.clinical_cases_penalty_weight*self.clinical_cases_penalty))
         
-    
-
+        
     def set_model_penalties(self):
         for obj in self.model.get_objectives():
             
@@ -297,30 +342,65 @@ class KaribaModel:
     def fit_entry(self):
         
         model_meta = self.model.get_meta()
+        sim_key = model_meta['sim_key']
         
         temp_h = sim_meta_2_temp_h(model_meta['sim_meta'])
         const_h = sim_meta_2_const_h(model_meta['sim_meta'])
         itn_level = sim_meta_2_itn_level(model_meta['sim_meta'])
         drug_cov = sim_meta_2_drug_cov(model_meta['sim_meta'])
         
-        fit_entry = {
-                     'sim_key':model_meta['sim_key'],
-                     'group_key': model_meta['group_key'],
-                     'sim_id':model_meta['sim_id'],
-                     'fit_val': self.get_fit_val(),
-                     'rho_val' : self.get_rho(),
-                     'p_val' : self.get_p_val(),
-                     'x_temp_h': temp_h,
-                     'const_h': const_h,
-                     'itn_level': itn_level,
-                     'drug_cov': drug_cov             
-                     }
-    
+        if self.all_fits:
+            fit_terms = self.all_fits[self.cluster_id][sim_key]['fit_terms']
+        else:
+            fit_terms = {}
+                        
+        if not 'cc_penalty' in fit_terms:
+            fit_terms['cc_penalty'] = {}
+
+        if 'ls_norm' in cc_penalty_model: 
+            fit_terms['cc_penalty']['ls_norm'] = self.clinical_cases_penalty
+        elif 'ls_norm_not_folded' in cc_penalty_model:
+            fit_terms['cc_penalty']['ls_norm_not_folded'] = self.clinical_cases_penalty
+            
+        if 'ls_no_norm' in cc_penalty_model: 
+            fit_terms['cc_penalty']['ls_no_norm'] = self.clinical_cases_penalty
+             
+        if 'corr_folded' in cc_penalty_model:
+            if not 'corr_folded' in fit_terms['cc_penalty']:
+                fit_terms['cc_penalty']['corr_folded'] = {}
+            fit_terms['cc_penalty']['corr_folded']['penalty'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['corr_folded']['rho'] = self.get_rho()
+            fit_terms['cc_penalty']['corr_folded']['p_val'] = self.get_p_val()
+            
+        if 'corr_not_folded' in cc_penalty_model:
+            if not 'corr_not_folded' in fit_terms['cc_penalty']:
+                fit_terms['cc_penalty']['corr_not_folded'] = {}
+            fit_terms['cc_penalty']['corr_not_folded']['penalty'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['corr_not_folded']['rho'] = self.get_rho()
+            fit_terms['cc_penalty']['corr_not_folded']['p_val'] = self.get_p_val()
+            
+        fit_terms['reinf_penalty'] = self.reinfection_penalty
+        
+        fit_terms['mse'] = self.get_mse()
+            
+        fit_entry = {}
+        fit_entry[model_meta['sim_key']] = {
+                                             'group_key': model_meta['group_key'],
+                                             'sim_id':model_meta['sim_id'],
+                                             'fit_val': self.get_fit_val(),
+                                             'rho_val' : self.get_rho(), # from most recent run
+                                             'p_val' : self.get_p_val(), # from most recent run
+                                             'x_temp_h': temp_h,
+                                             'const_h': const_h,
+                                             'fit_terms':fit_terms,
+                                             'itn_level': itn_level,
+                                             'drug_cov': drug_cov             
+                                             }
+        
         return fit_entry
-        
-        
     
-    # note: we use composition here instead of inheriting from Model; hence all methods of models that would normalyy be inherited are made available in KaribaModel
+
+    # note: we use composition here instead of inheriting from Model; hence all methods of models that would normally be inherited are made available in KaribaModel
     
     def get_objectives(self):
         return self.model.get_objectives()
@@ -344,7 +424,22 @@ class KaribaModel:
         self.model.set_fit_val(fit_val)
         
     def get_fit_val(self):
-        return self.model.get_fit_val() 
+        return self.model.get_fit_val()
+    
+    def set_mse(self, mse):
+        self.model.set_mse(mse)
+    
+    def get_mse(self):
+        return self.model.get_mse()
+    
+    def get_cached_mse(self):
+        
+        if self.all_fits:
+            return self.all_fits[self.cluster_id][sim_key]['fit_terms']['mse']
+        else:
+            error_loading_fit_terms('mse')
+        
+         
         
     def add_objective(self, name, m_points, weight = 0.0, m_points_weights = [], fit_penalty = 0.0):
         self.model.add_objective(name, m_points, weight, m_points_weights, fit_penalty)

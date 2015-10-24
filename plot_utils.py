@@ -25,8 +25,8 @@ from utils import warn_p, debug_p
 
 from surv_data_2_ref import surv_data_2_ref as d2f
 
-from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import cc_data_aggregate, cc_data_nan_clean
+from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
+from kariba_utils import get_cc_model_ref_traces
 
 class PlotUtils():
     
@@ -135,9 +135,8 @@ class PlotUtils():
                 ax.scatter(channels_sample_points['prevalence'][i], opt_prev_trace[channels_sample_points['prevalence'][i]], c = 'black', facecolor = 'none', marker='o', s = 60, label = label_sim_prev)
 
             count_traces = 0 
-            for fit_entry in self.all_fits[cluster_id]:
-                
-                sim_key = fit_entry['sim_key']
+            for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
+
                 group_key = fit_entry['group_key']
                 fit_val = fit_entry['fit_val']
             
@@ -206,7 +205,7 @@ class PlotUtils():
             
             opt_neigh_fits = []
             
-            for fit_entry in self.all_fits[cluster_id]:
+            for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
         
                 x_temp_h = fit_entry['x_temp_h']
                 const_h = fit_entry['const_h']
@@ -230,10 +229,7 @@ class PlotUtils():
                 error_points[group_key]['const_h'].append(const_h)
                 error_points[group_key]['fit_val'].append(fit_val)
                 
-                sim_key = fit_entry['sim_key']
-                group_key = fit_entry['group_key']
-                fit_val = fit_entry['fit_val']
-                
+                                
                 if not (sim_key == opt_sim_key or fit_val > opt_fit_value + opt_fit_value*subopt_plots_threshold): 
                     opt_neigh_fits.append(fit_entry) 
                        
@@ -344,6 +340,7 @@ class PlotUtils():
                     '''
                     count_traces = 0
                     
+                    # NEED TO update to new FIT_ENTRY DATA STRUCT IF REUSED
                     for fit_entry in opt_neigh_fits:
                         
                         x_temp_h = fit_entry['x_temp_h']
@@ -389,8 +386,7 @@ class PlotUtils():
             
             opt_cc_trace = self.calib_data[opt_group_key][opt_sim_key]['cc']
             
-            ccs_model_agg, ccs_ref_agg = cc_data_aggregate(opt_cc_trace, cluster_id)
-            ccs_model_agg, ccs_ref_agg  = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
+            ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(opt_cc_trace, cluster_id)
             
             #debug_p('model length ' + str(len(ccs_model_agg)))
             #debug_p('ref length ' + str(len(ccs_ref_agg)))
@@ -445,9 +441,8 @@ class PlotUtils():
             #ax.plot(dates, ccs_ref_agg, alpha=1, linewidth=2.0, c = 'red', label = 'Observed in ' + facility)
             '''
             count_traces = 0 
-            for fit_entry in self.all_fits[cluster_id]:
+            for sim_key, fit_entry in self.all_fits[cluster_id].iteritems():
                 
-                sim_key = fit_entry['sim_key']
                 group_key = fit_entry['group_key']
                 fit_val = fit_entry['fit_val']
             
@@ -457,8 +452,7 @@ class PlotUtils():
                 
                 cc_trace = self.calib_data[group_key][sim_key]['cc']
             
-                ccs_model_agg, ccs_ref_agg = cc_data_aggregate(cc_trace, cluster_id)
-                ccs_model_agg, ccs_ref_agg  = cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id)
+                ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(cc_trace, cluster_id)
                 
                 # the following code only relevant for rank correlation cc penalty fit
                 rho = None
@@ -500,7 +494,7 @@ class PlotUtils():
                 ax.bar(ref_dates, ref_cases, width=12,color='red',edgecolor='red', linewidth=0, label = 'Observed in ' + facility)
                 '''
             
-            plt.xlabel('Time (6-week bins)', fontsize=8)
+            plt.xlabel('6-week bins', fontsize=8)
             plt.ylabel('Clinical cases', fontsize=8)
             legend = plt.legend(loc=1, fontsize=8)
             

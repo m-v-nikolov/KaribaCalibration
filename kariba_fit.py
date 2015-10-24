@@ -5,9 +5,9 @@ from sim_data_2_models import calib_data_2_models_list
 from surv_data_2_ref import surv_data_2_ref as d2f
 
 
-from kariba_settings import category_2_clusters as c2c, cluster_2_prevs as c2p, objectives_channel_codes, cluster_2_itn_traj, cluster_2_drug_cov
+from kariba_settings import load_prevalence_mse, category_2_clusters as c2c, cluster_2_prevs as c2p, objectives_channel_codes, cluster_2_itn_traj, cluster_2_drug_cov
 from kariba_model import KaribaModel
-from kariba_utils import get_sim_group_key, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h 
+from kariba_utils import get_sim_group_key, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
 
 
 from fitting_set import FittingSet
@@ -16,9 +16,10 @@ from fit import Fit
 
 class KaribaFit:
     
-    def __init__(self, category, calib_data):
+    def __init__(self, category, calib_data, fit_terms = None):
         self.category = category
         self.calib_data = calib_data
+        self.fit_terms = fit_terms
 
 
     def fit(self):
@@ -52,7 +53,9 @@ class KaribaFit:
                     #debug_p('model id before kariba conversion ' + str(model.get_model_id()))
                     group_key = model_meta['group_key']
                     sim_key = model_meta['sim_key']
-                    model = KaribaModel(model, self.calib_data[group_key][sim_key], cluster_id)
+
+                    model = KaribaModel(model, self.calib_data[group_key][sim_key], cluster_id, all_fits = self.fit_terms)
+                    
                     #model = kariba_model
                     #debug_p('model id after kariba conversion ' + str(model.get_model_id()))
                     cluster_models.append(model)
@@ -80,7 +83,11 @@ class KaribaFit:
             ref = d2f(surv_data)
             
             fitting_set = FittingSet(cluster_id, cluster_models, ref)
-            fit = Fit(fitting_set)
+            
+            if load_prevalence_mse:
+                fit = Fit(fitting_set, type = 'mmse_distance_cached')
+            else:
+                fit = Fit(fitting_set)
             
             best_fit_model = fit.best_fit_mmse_distance()
             

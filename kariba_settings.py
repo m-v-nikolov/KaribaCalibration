@@ -1,4 +1,6 @@
 import json
+import math
+import pandas as pd
 from datetime import datetime,timedelta, date
 
 from reference_data_scripts.nodenames import *
@@ -33,15 +35,21 @@ warnings_flag = True
 
 calib_node_pop= 1000 
 
-num_procs = 3
+num_procs = 2
 
-cc_weight = 0.00125
-#cc_weight = 0
+cc_weight = 0.00126
+#cc_weight = 1000
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'corr_norm_pop_cc_2010_2012_cc' + str(cc_weight)
+cc_penalty_model = 'corr_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
+
 cc_agg_period = 6 # weeks
+cc_agg_fold = True
+cc_num_fold_bins = int(math.ceil(365/(cc_agg_period*7 + 0.0)))  
+fold_start_date = pd.to_datetime('1/1/2011')
+fold_end_date = pd.to_datetime('2/9/2014')
+
 cc_correction_factor = 0.33
 
 traces_plots_dir = 'prev_traces'
@@ -57,18 +65,27 @@ err_surfaces_base_file_name = 'surf_'
 cc_sim_start_date = datetime(2005,1,1)
 cc_ref_start_date = datetime(2010,5,24)
 #cc_ref_end_date = datetime(2015,7,20)
-cc_ref_end_date = datetime(2012,12,17)
+#cc_ref_end_date = datetime(2013,12,30)
+cc_ref_end_date = datetime(2014,2,9)
 
 
 
 ref_data_dir = 'reference_data_scripts'
 sim_data_dir = 'sim_data'
-residuals_file = 'residuals'
+fit_terms_file = 'fit_terms.json'
+residuals_file = 'residuals.json' 
 calibration_data_file = 'calibration_cc.json'
 tags_data_file = 'tags.json'
 tags_report_data_file = 'tags_report.json'
 best_fits_file = cc_penalty_model + '_best_fits.json'
 all_fits_file =  cc_penalty_model + '_all_fits.json'
+
+
+# fit terms settings
+load_cc_penalty = True
+load_prevalence_mse = True
+load_reinf_penalty = False
+
 
 
 # VISUALIZATION SETTINGS
@@ -108,6 +125,20 @@ markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p', '*', 'h',
 opt_marker = 'D'
 opt_marker_size = 6  
 
+
+def get_fold_bins(): 
+    
+    fold_bins = {}
+    for i in range(0, cc_num_fold_bins):
+        #fold_bins[i] = {'dates':[], 'cases_model':'nan', 'cases_ref':'nan', 'cases_ref_entries':[]}
+        fold_bins[i] = {'cases_model':'nan', 'cases_ref':'nan'}
+
+    '''    
+    with open(os.path.join(ref_data_dir,'fold_bins.json'), 'r') as folds_f:
+        fold_bins = json.load(folds_f) 
+    '''
+    return fold_bins
+        
 
 def hfca_id_2_facility(hfca_id):
     return health_facility_names[int(hfca_id)]

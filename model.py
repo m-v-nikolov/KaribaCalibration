@@ -21,6 +21,7 @@ class Model:
         
         
         self.fit_val = float('inf')
+        self.mse = float('inf')
     
     
     def get_objectives(self):
@@ -64,7 +65,12 @@ class Model:
     
     def get_fit_val(self):
         return self.fit_val    
+    
+    def set_mse(self, mse):
+        self.mse = mse
         
+    def get_mse(self):
+        return self.mse
         
     def to_dict(self):
         model_dict = {'meta': model.get_meta()}

@@ -27,6 +27,8 @@ class Fit:
         
         if self.type == 'mmse_distance':
             best_fit = self.best_fit_mmse_distance()
+        elif self.type == 'mmse_distance_cached':
+            best_fit = self.best_fit_mmse_distance(cached = True)
         else:
             msg = "unrecognized fit function type " + self.type + "!\nReturning None."
             warn_p(msg)
@@ -36,7 +38,7 @@ class Fit:
             
     
     
-    def best_fit_mmse_distance(self):
+    def best_fit_mmse_distance(self, cached = False):
         
         models_list = self.fitting_set.get_models_list()
         
@@ -51,6 +53,7 @@ class Fit:
         for model in models_list:
             
             distance = None
+            mse = 0.0
             for obj in model.get_objectives():
                 m_points = obj.get_points()     # model values for this obj
                 d_points = ref.get_obj_by_name(obj.get_name()).get_points()  # reference data values for this obj
@@ -60,7 +63,10 @@ class Fit:
                 
                 points_weights = obj.get_points_weights()
         
-                mse = self.mse(m_points, d_points, points_weights)
+                if not cached:
+                    mse = self.mse(m_points, d_points, points_weights)
+                else:
+                    mse = model.get_cached_mse()
                 
                 if not mse == None:
                     if distance == None:
@@ -71,6 +77,8 @@ class Fit:
                         #debug_p('obj weight: ' + str(obj.get_weight()))
                         #debug_p('distance ' + str(distance))
                         distance  = distance + obj.get_weight()*(mse + obj.get_model_penalty())
+            
+            model.set_mse(mse)
             
             if distance:
                 

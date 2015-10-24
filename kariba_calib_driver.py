@@ -15,7 +15,7 @@ from plot_utils import PlotUtils
 from viz_config import VizConfig
 from kariba_utils import combine_tags_reports
 
-from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file
+from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, fit_terms_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file
 
 def multi_proc_run(sweep_name, sweep, command):
     
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     
     
     sweep =  {              
-              
+                
                 "Gwembe_pilot":{
                               'Gwembe_1_node_MSAT_0.7_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Gwembe_1_node_MSAT_0.7_w_pilot_calib_a84a10ba-ef48-e511-93f8-f0921c16849c.json'],
                               'Gwembe_1_node_MSAT_0.55_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Gwembe_1_node_MSAT_0.55_w_pilot_calib_bc4d78c1-ee48-e511-93f8-f0921c16849c.json'],
@@ -119,13 +119,14 @@ if __name__ == '__main__':
                                   }
               }
     
+    
     '''
     sweep =  {              
-           'Sinamalima_pilot':{
-                              'Sinamalima_1_node_MSAT_0.55_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.55_w_pilot_calib_90937da8-e648-e511-93f8-f0921c16849c.json'],
-                              'Sinamalima_1_node_MSAT_0.7_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.7_w_pilot_calib_8beb772d-e748-e511-93f8-f0921c16849c.json'],
-                              'Sinamalima_1_node_MSAT_0.35_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_nodeMSAT_0.35_w_pilot_calib_a433fc45-e648-e511-93f8-f0921c16849c.json']
-                              }
+           "Sinamalima_no_pilot":{
+                                     'Sinamalima_1_node_MSAT_0.7_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.7_w_NO_pilot_calib_d1297ec8-e848-e511-93f8-f0921c16849c.json'],
+                                     'Sinamalima_1_node_MSAT_0.55_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.55_w_NO_pilot_calib_71ff6f4c-e848-e511-93f8-f0921c16849c.json'],
+                                     'Sinamalima_1_node_MSAT_0.35_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.35_w_NO_pilot_calib_98ee99d3-e748-e511-93f8-f0921c16849c.json']
+                                     }
               }
     '''
     
@@ -144,6 +145,7 @@ if __name__ == '__main__':
     
     best_fits = {}
     all_fits = {}
+    fit_terms = {}
     residuals = {}
     # combine all categories best fits in a single file in the sweep dir folder for spatial sims
     # also, create all error surface, prevalence time_series plots if any in the root sweep dir
@@ -163,6 +165,9 @@ if __name__ == '__main__':
         with open(os.path.join(sweep_dir, all_fits_file), 'r') as all_fits_f:
             all_fits_cat = json.load(all_fits_f)
             
+        with open(os.path.join(sweep_dir, fit_terms_file), 'r') as fit_terms_f:
+            fit_terms_cat = json.load(fit_terms_f)
+            
         with open(os.path.join(sweep_dir, residuals_file), 'r') as res_f:
             res_cat = json.load(res_f)
             
@@ -178,6 +183,7 @@ if __name__ == '__main__':
        
         best_fits.update(best_fits_cat)
         all_fits.update(all_fits_cat)
+        fit_terms.update(fit_terms_cat)
         
         print "Best fits updated for category " + category
     
@@ -190,6 +196,9 @@ if __name__ == '__main__':
     
     with open(os.path.join(root_sweep_dir, all_fits_file), 'w') as all_fits_f:
         json.dump(all_fits, all_fits_f, indent = 4)
+        
+    with open(os.path.join(sim_data_dir, fit_terms_file), 'w') as fit_terms_f:
+        json.dump(fit_terms, fit_terms_f, indent = 5)
         
     with open(os.path.join(root_sweep_dir, residuals_file), 'w') as res_f:
         json.dump(residuals, res_f, indent = 2)
@@ -219,4 +228,3 @@ if __name__ == '__main__':
     
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
-        
