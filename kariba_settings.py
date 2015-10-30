@@ -37,7 +37,7 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.00126
+#cc_weight = 0.00126
 #cc_weight = 1000
 reinf_weight = 0
 

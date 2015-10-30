@@ -58,6 +58,15 @@ class Model:
     
     def set_model_id(self, model_id):
         self.model_id = model_id
+        
+    def get_objective_by_name(self, name):
+        objs = self.get_objectives()
+        
+        for obj in objs:
+            if name == obj.get_name():
+                return obj
+        
+        return None
     
         
     def set_fit_val(self, fit_val):

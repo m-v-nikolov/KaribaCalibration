@@ -124,7 +124,8 @@ class KaribaFit:
                 best_fits[cluster_id]['group_key'] = best_fit_meta['group_key']
                 best_fits[cluster_id]['fit_value'] = best_fit_model.get_fit_val()
                 best_fits[cluster_id]['sim_avg_reinfection_rate'] = best_fit_model.get_sim_avg_reinfection_rate()
-                best_fits[cluster_id]['ref_avg_reinfection_rate'] = best_fit_model.get_ref_avg_reinfection_rate()  
+                best_fits[cluster_id]['ref_avg_reinfection_rate'] = best_fit_model.get_ref_avg_reinfection_rate()
+                best_fits[cluster_id]['prevalence'] = best_fit_model.get_objective_by_name('prevalence')  
                     
     
                 best_fits[cluster_id]['ITN_cov'] = itn_level

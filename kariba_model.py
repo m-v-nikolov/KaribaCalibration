@@ -405,6 +405,9 @@ class KaribaModel:
     def get_objectives(self):
         return self.model.get_objectives()
     
+    def get_objective_by_name(self, name):
+        return self.model.get_objective_by_name(name)
+    
     def set_objectives(self, objectives):
         self.model.set_objectives(objectives)
         

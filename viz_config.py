@@ -120,6 +120,7 @@ class VizConfig():
                 cluster_map_record['itn_level'] = cluster_record['ITN_cov']
                 cluster_map_record['drug_coverage'] = cluster_record['MSAT_cov']
                 cluster_map_record['fit_value'] = cluster_record['fit_value']
+                cluster_map_record['RDT_sn_sim'] = cluster_record['prevalence']
                 
                 self.sweep_map.append(cluster_map_record)
                  
