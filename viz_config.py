@@ -5,7 +5,7 @@ import shutil as sh
 from utils import warn_p, debug_p, verbose_p, json_list_update
 
 from kariba_settings import ref_data_dir, cc_weight, reinf_weight, sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file,\
-    cc_penalty_model
+    cc_penalty_model, load_cc_penalty, load_prevalence_mse, load_reinf_penalty
 
 
 class VizConfig():
@@ -33,9 +33,50 @@ class VizConfig():
         
         with open(tags_data_file_path, 'r') as t_f:
             tags_data = json.load(t_f)
+
+        # extract penalty model w/o weights
+        x = cc_penalty_model.index('_cc_w')
+        penalty_model = cc_penalty_model[0:x]
         
-        gazetteer_nav_entry = {}
-       
+        
+        # if penalties and mse have been pre-cached and are only loaded then assume model re-weighting 
+        # find the corresponding existing model and adjust entry, adding reweighting
+        if load_cc_penalty and load_prevalence_mse:
+            with open(gazetteer_file_path, 'r') as g_f:
+                gazetteer_entries = json.load(g_f)
+                
+                # if preloading penalty model was successful, than assume the corresponding penalty model is already in gazetteer
+                # (add exception throw in the future if penalty model is not in gazetteer
+                for entry in gazetteer_entries:
+                    debug_p(entry['model'])
+                    debug_p(penalty_model)
+                    if entry['model'] == penalty_model:
+                        model_weight = cc_penalty_model[x+1:]
+                        entry['select'].append({'name':model_weight, 'value':self.sweep_name})
+                        break
+                
+                # save updated gazetteer entries
+                with open(gazetteer_file_path, 'w') as g_f:
+                    json.dump(gazetteer_entries, g_f, indent = 4)
+                    
+        # otherwise, create a new model entry 
+        else:
+            gazetteer_nav_entry = {}
+            gazetteer_nav_entry['model'] = penalty_model 
+            gazetteer_nav_entry['params'] = self.get_model_params_gazetteer(tags_data, penalty_model)
+            gazetteer_nav_entry['select'] = [{'name':'', 'value':'unselect'}]
+            gazetteer_nav_entry['select'].append({'name':model_weight, 'value':self.sweep_name}) 
+            
+            if os.path.exists(gazetteer_file_path):
+                json_list_update(gazetteer_nav_entry, gazetteer_file_path)
+            else:
+                with open(gazetteer_file_path, 'w') as g_f:
+                    json.dump([gazetteer_nav_entry], g_f, indent = 4)
+        
+
+
+    def get_model_params_gazetteer(self, tags_data, penalty_model):
+        
         entry_str = ""
             
         for param, values in tags_data.iteritems():
@@ -61,16 +102,11 @@ class VizConfig():
         
             entry_str = entry_str + "<br />"
             
-        entry_str = entry_str + cc_penalty_model + "<br />"
+        entry_str = entry_str + penalty_model + "<br />"
+        
+        return entry_str
+    
 
-        gazetteer_nav_entry['name'] = entry_str
-        
-        if os.path.exists(gazetteer_file_path):
-            json_list_update(gazetteer_nav_entry, gazetteer_file_path)
-        else:
-            with open(gazetteer_file_path, 'w') as g_f:
-                json.dump([gazetteer_nav_entry], g_f, indent = 4)
-        
 
     def generate_gazetteer_header(self):
         
@@ -87,7 +123,8 @@ class VizConfig():
             
             gazeteer_header = gazeteer_header + param + ":<br />"
             
-        gazeteer_header = gazeteer_header + "Comment:<br />"
+        gazeteer_header = gazeteer_header + "Penalty model:<br />"
+        gazeteer_header = gazeteer_header + "Penalty weight:<br />"
             
         with open(gazeteer_header_file_path, 'w') as gh_f:
             json.dump(gazeteer_header, gh_f)              
@@ -134,7 +171,6 @@ class VizConfig():
             json.dump(self.sweep_map, map_f, indent = 4)
              
             
-    
     
     def get_cluster_map_record(self, cluster_id):
         for cluster_map_record in self.base_map:

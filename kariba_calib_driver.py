@@ -76,7 +76,7 @@ def multi_proc_run(sweep_name, sweep, command):
 
 if __name__ == '__main__':
     
-    sweep_name = cc_penalty_model + '_categories_weather_pilot_debug'
+    sweep_name = cc_penalty_model + '_climate_categories_pilot_categories'
     
     
     
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
-    
+    '''
     multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
@@ -216,10 +216,11 @@ if __name__ == '__main__':
         sweep_dirs.append(sweep_dir)
         
     combine_tags_reports(sweep_dirs, root_sweep_dir)
-    
+    '''
+        
     with open(os.path.join(root_sweep_dir, best_fits_file), 'r') as best_fits_f:
         best_fits = json.load(best_fits_f)
-        
+    
     viz_conf = VizConfig(best_fits, sweep_name)
     viz_conf.update_d3js()
     viz_conf.generate_gazetteer()
