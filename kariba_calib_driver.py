@@ -202,7 +202,8 @@ if __name__ == '__main__':
         
     with open(os.path.join(root_sweep_dir, residuals_file), 'w') as res_f:
         json.dump(residuals, res_f, indent = 2)
-    
+    '''
+        
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
     print "Generating gazetteer"
@@ -216,7 +217,7 @@ if __name__ == '__main__':
         sweep_dirs.append(sweep_dir)
         
     combine_tags_reports(sweep_dirs, root_sweep_dir)
-    '''
+    
         
     with open(os.path.join(root_sweep_dir, best_fits_file), 'r') as best_fits_f:
         best_fits = json.load(best_fits_f)

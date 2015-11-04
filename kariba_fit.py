@@ -7,7 +7,7 @@ from surv_data_2_ref import surv_data_2_ref as d2f
 
 from kariba_settings import load_prevalence_mse, category_2_clusters as c2c, cluster_2_prevs as c2p, objectives_channel_codes, cluster_2_itn_traj, cluster_2_drug_cov
 from kariba_model import KaribaModel
-from kariba_utils import get_sim_group_key, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h
+from kariba_utils import get_sim_group_key, get_model_params
 
 
 from fitting_set import FittingSet
@@ -102,37 +102,62 @@ class KaribaFit:
             
             if best_fit_model: 
             
-                model_meta_data = best_fit_model.get_meta()
-                best_fit_sim_meta_data = model_meta_data['sim_meta']
-                
-                
-                # get best fit params
-                temp_h = sim_meta_2_temp_h(best_fit_sim_meta_data)
-                const_h = sim_meta_2_const_h(best_fit_sim_meta_data)
-                itn_level = sim_meta_2_itn_level(best_fit_sim_meta_data)
-                drug_coverage_level = sim_meta_2_drug_cov(best_fit_sim_meta_data)
-                
+                temp_h, const_h, itn_level, drug_coverage_level = get_model_params(best_fit_model)
     
                 best_fits[cluster_id] = {}
                 best_fits[cluster_id]['habs'] = {}
                 best_fits[cluster_id]['habs']['const_h'] = const_h 
                 best_fits[cluster_id]['habs']['temp_h'] = temp_h
-                
+                best_fits[cluster_id]['ITN_cov'] = itn_level
+                best_fits[cluster_id]['category'] = self.category
+                best_fits[cluster_id]['MSAT_cov'] = drug_coverage_level
+                model_meta_data = best_fit_model.get_meta()
+                best_fits[cluster_id]['sim_id'] = model_meta_data['sim_id']
                 best_fit_meta = best_fit_model.get_meta()
-                
                 best_fits[cluster_id]['sim_key'] = best_fit_meta['sim_key'] 
                 best_fits[cluster_id]['group_key'] = best_fit_meta['group_key']
                 best_fits[cluster_id]['fit_value'] = best_fit_model.get_fit_val()
                 best_fits[cluster_id]['sim_avg_reinfection_rate'] = best_fit_model.get_sim_avg_reinfection_rate()
                 best_fits[cluster_id]['ref_avg_reinfection_rate'] = best_fit_model.get_ref_avg_reinfection_rate()
-                best_fits[cluster_id]['prevalence'] = best_fit_model.get_objective_by_name('prevalence').get_points()  
-                    
-    
-                best_fits[cluster_id]['ITN_cov'] = itn_level
-                best_fits[cluster_id]['category'] = self.category
-                best_fits[cluster_id]['MSAT_cov'] = drug_coverage_level
-                best_fits[cluster_id]['sim_id'] = model_meta_data['sim_id']
+                best_fits[cluster_id]['prevalence'] = best_fit_model.get_objective_by_name('prevalence').get_points()
+            
+                # redundancy; to be refactored via FitEntry class                
+                best_fits[cluster_id]['fit'] = {}
+                best_fits[cluster_id]['fit']['value'] = best_fit_model.get_fit_val()
+                best_fits[cluster_id]['fit']['temp_h'] = temp_h
+                best_fits[cluster_id]['fit']['const_h'] = const_h
+                best_fits[cluster_id]['fit']['ITN_cov'] = itn_level
+                best_fits[cluster_id]['fit']['MSAT_cov'] = drug_coverage_level
+                best_fits[cluster_id]['fit']['sim_id'] = model_meta_data['sim_id']
+                best_fits[cluster_id]['fit']['sim_key'] = model_meta_data['sim_key']
                 
+                
+                best_fits[cluster_id]['mse'] = {}
+                best_fits[cluster_id]['mse']['value'] = fit.get_min_mses()['prevalence']['value'] # get mmse for objective prevalence
+                best_fit_mse_model = fit.get_min_mses()['prevalence']['model']
+                temp_h, const_h, itn_level, drug_coverage_level = get_model_params(best_fit_mse_model)
+                model_meta_data = best_fit_mse_model.get_meta()
+                best_fits[cluster_id]['mse']['temp_h'] = temp_h
+                best_fits[cluster_id]['mse']['const_h'] = const_h
+                best_fits[cluster_id]['mse']['ITN_cov'] = itn_level
+                best_fits[cluster_id]['mse']['MSAT_cov'] = drug_coverage_level
+                best_fits[cluster_id]['mse']['sim_id'] = model_meta_data['sim_id']
+                best_fits[cluster_id]['mse']['sim_key'] = model_meta_data['sim_key']
+                
+                
+                best_fits[cluster_id]['cc_penalty'] = {}
+                best_fits[cluster_id]['cc_penalty']['value'] = fit.get_min_penalties()['prevalence']['value'] # get clinical penalty for objective prevalence; at present this is just the clinical cases penalty; if reinfection is considered the code needs to be adjusted
+                best_fit_cc_penalty_model = fit.get_min_penalties()['prevalence']['model']
+                temp_h, const_h, itn_level, drug_coverage_level = get_model_params(best_fit_cc_penalty_model)
+                model_meta_data = best_fit_cc_penalty_model.get_meta()
+                best_fits[cluster_id]['cc_penalty']['temp_h'] = temp_h
+                best_fits[cluster_id]['cc_penalty']['const_h'] = const_h
+                best_fits[cluster_id]['cc_penalty']['ITN_cov'] = itn_level
+                best_fits[cluster_id]['cc_penalty']['MSAT_cov'] = drug_coverage_level
+                best_fits[cluster_id]['cc_penalty']['sim_id'] = model_meta_data['sim_id']
+                best_fits[cluster_id]['cc_penalty']['sim_key'] = model_meta_data['sim_key']
+                  
+    
                 rho = best_fit_model.get_rho()
                 p_val = best_fit_model.get_p_val()
                 

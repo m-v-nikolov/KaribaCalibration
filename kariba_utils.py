@@ -6,9 +6,22 @@ import numpy as np
 
 from datetime import datetime,timedelta
 
-from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir
+from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model
 
 from utils import warn_p, debug_p
+
+def get_cc_penalty(fit_entry):
+    
+    if 'corr_folded' in cc_penalty_model:
+        return fit_entry['fit_terms']['cc_penalty']['corr_folded']['penalty']
+    
+    if 'corr_not_folded' in cc_penalty_model:
+        return fit_entry['fit_terms']['cc_penalty']['corr_not_folded']['penalty']
+    
+    else:
+        debug_p('No clinical cases penalty found. This should not happen!')
+        return None
+        
 
 def get_sim_key(temp_h, const_h, itn_level, drug_level):
     return str(temp_h) + '_' + str(const_h) + '_' + get_sim_group_key(itn_level, drug_level)
@@ -39,6 +52,20 @@ def sim_meta_2_const_h(meta):
     const_h_struct = ast.literal_eval(meta['scale_larval_habitats_single'])
     const_h = float(const_h_struct[0][1][1])
     return const_h
+
+
+def get_model_params(model):
+
+    model_meta_data = model.get_meta()
+    sim_meta_data = model_meta_data['sim_meta']
+        
+    # get best fit params
+    temp_h = sim_meta_2_temp_h(sim_meta_data)
+    const_h = sim_meta_2_const_h(sim_meta_data)
+    itn_level = sim_meta_2_itn_level(sim_meta_data)
+    drug_coverage_level = sim_meta_2_drug_cov(sim_meta_data)
+    
+    return temp_h, const_h, itn_level, drug_coverage_level
 
 
 def combine_tags_reports(base_dirs, output_dir):

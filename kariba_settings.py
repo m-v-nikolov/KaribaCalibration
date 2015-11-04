@@ -37,7 +37,7 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.00126
+cc_weight = 0.001
 #cc_weight = 1000
 reinf_weight = 0
 
@@ -90,6 +90,8 @@ load_reinf_penalty = False
 
 # VISUALIZATION SETTINGS
 subopt_plots_threshold = 0.1 # only plot traces, surfaces that are suboptimal (when required) if the corresponding fit is within some fraction of the optimal (e.g. 0.1)
+
+err_surface_types = {'fit':'Clinical cases + Prevalence', 'cc_penalty':'Clinical cases', 'mse':'Prevalence'}
 
 root_viz_dir = 'visualization'
 kariba_viz_dir = os.path.join(root_viz_dir, 'kariba_viz')

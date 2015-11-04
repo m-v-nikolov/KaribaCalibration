@@ -6,7 +6,7 @@ import gc
 from comps_2_sim_data import get_sweep_results, combine_sweep_results
 from sim_data_2_models import calib_data_2_models_list
 
-from kariba_settings import sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file
+from kariba_settings import sim_data_dir, best_fits_file, all_fits_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file, err_surface_types
 from kariba_fit import KaribaFit
 from plot_utils import PlotUtils
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         
         print "Plotting per cluster error surfaces for category " + category
         
-        pp.plot_calib_err_surfaces()
+        pp.plot_calib_err_surfaces(err_surface_types)
         
         print "Plotting error surfaces done for category " + category
         print "Plots stored in "  + err_plots_dir

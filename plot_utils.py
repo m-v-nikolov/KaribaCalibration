@@ -25,8 +25,8 @@ from utils import warn_p, debug_p
 
 from surv_data_2_ref import surv_data_2_ref as d2f
 
-from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date
-from kariba_utils import get_cc_model_ref_traces
+from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, cc_penalty_model
+from kariba_utils import get_cc_model_ref_traces, get_cc_penalty
 
 class PlotUtils():
     
@@ -175,7 +175,9 @@ class PlotUtils():
             count = count + 1
     
     
-    def plot_calib_err_surfaces(self):
+    # err_surface_types specifies which residual surfaces to plot (e.g. clinical cases penalty, prevalence mse, or combined residuals)
+    # err_surface_type is a dictionary: {err_surface_type:'plot_title'}
+    def plot_calib_err_surfaces(self, err_surface_types):
         
         count = 0
         
@@ -186,23 +188,31 @@ class PlotUtils():
             
             debug_p('Plotting error surface for cluster ' + cluster_id + ' in category ' + self.category)
         
-            fig = plt.figure(cluster_id, figsize=(4.35, 4), dpi=100, facecolor='white')
+            fig_width = len(err_surface_types)*4.35
+            fig = plt.figure(cluster_id, figsize=(fig_width, 4), dpi=300, facecolor='white')
+            #debug_p('error surface types length' + str(len(err_surface_types)))
+            #debug_p('fig width' + str(fig_width))
             
-            gs = gridspec.GridSpec(1, 1)
+            gs = gridspec.GridSpec(1, 3)
          
             error_points = {}
             
             title_ITN = 'ITN distribution: '
             title_drug_coverage = 'drug coverage: '
             
+            opt_fit = {}
             
             opt_sim_key = cluster_record['sim_key']
             opt_group_key = cluster_record['group_key']
             opt_const_h = cluster_record['habs']['const_h']
             opt_x_temp_h = cluster_record['habs']['temp_h']
-            opt_fit_value = cluster_record['fit_value']
             
-            
+            for err_surface_type in err_surface_types:    
+                opt_fit[err_surface_type] = {} 
+                opt_fit[err_surface_type]['const_h'] = cluster_record[err_surface_type]['const_h']
+                opt_fit[err_surface_type]['temp_h'] = cluster_record[err_surface_type]['temp_h']
+                opt_fit[err_surface_type]['value'] = cluster_record[err_surface_type]['value']
+                 
             opt_neigh_fits = []
             
             for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
@@ -210,6 +220,8 @@ class PlotUtils():
                 x_temp_h = fit_entry['x_temp_h']
                 const_h = fit_entry['const_h']
                 fit_val = fit_entry['fit_val']
+                mse = fit_entry['fit_terms']['mse']
+                cc_penalty = get_cc_penalty(fit_entry)
 
                 itn_level = fit_entry['itn_level']
                 drug_coverage_level = fit_entry['drug_cov']
@@ -220,18 +232,19 @@ class PlotUtils():
                     error_points[group_key] = {
                                                    'x_temp_h':[],
                                                    'const_h':[],
-                                                   'fit_val':[],
+                                                   'fit':[],
+                                                   'cc_penalty':[],
+                                                   'mse':[],
                                                    'title': title_ITN + itn_level + "; " + title_drug_coverage + str(drug_coverage_level),
                                                    'itn_level':itn_level,
                                                    'drug_coverage':drug_coverage_level
-                                                   }
+                                                }
+                    
                 error_points[group_key]['x_temp_h'].append(x_temp_h)
                 error_points[group_key]['const_h'].append(const_h)
-                error_points[group_key]['fit_val'].append(fit_val)
-                
-                                
-                if not (sim_key == opt_sim_key or fit_val > opt_fit_value + opt_fit_value*subopt_plots_threshold): 
-                    opt_neigh_fits.append(fit_entry) 
+                error_points[group_key]['fit'].append(fit_val)
+                error_points[group_key]['mse'].append(mse)
+                error_points[group_key]['cc_penalty'].append(cc_penalty)
                        
                           
             ymax = 10
@@ -242,134 +255,140 @@ class PlotUtils():
             #scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=pal)
             scalarMap = b2mpl.get_map('Spectral', 'Diverging', 5).mpl_colors
             
-            for i,group_key in enumerate(error_points.keys()):
-                
-                itn_level = error_points[group_key]['itn_level']
-                drug_coverage = error_points[group_key]['drug_coverage']
-                
-                if group_key == opt_group_key: 
-        
-                    plt.subplot(gs[0,0])
-                    x = error_points[group_key]['x_temp_h']
-                    y = error_points[group_key]['const_h']
-                    z = error_points[group_key]['fit_val']
-                    #print len(z)
-                    res = 125
-                    ttl = error_points[group_key]['title']
-                    
-                    min_x = np.min(x)
-                    min_y = np.min(y)
-                    
-                    max_x = np.max(x)
-                    max_y = np.max(y)
-                
-                    #f = interpolate.interp2d(x, y, z)
-                
-                    xi = np.linspace(min_x, max_x , res)
-                    yi = np.linspace(min_y, max_y , res)
-                    
-                    zi = griddata(x,y,z,xi,yi)
-                    
-                    #xig, yig = np.meshgrid(xi, yi)
-                    #zig = f(xi,yi)
-
-                    #rbf = Rbf(x, y, z, epsilon=2)
-                    #zig = rbf(xig, yig)
-                
-                    #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.cm.hot)
-                    #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'), vmin=0.475, vmax=0.8)
-                    #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'))
-                    rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'), vmin = min_residual, vmax = max_residual)
-                    #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.get_cmap('paired'))
-                    #rmse_pl.cmap.set_over('black')
-                    #rmse_pl.cmap.set_under('grey')
-                    cb = plt.colorbar(rmse_pl)
-
-                    cb.set_label('Residuals', fontsize=8)
-                    cb.ax.tick_params(labelsize=8)    
-                    #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('Paired'))
-                    
-                    level1_opt_neighs_label = False
-                    level2_opt_neighs_label = False
-                    level3_opt_neighs_label = False
-                    for i,fit_val in enumerate(z):
-                        
-                        if fit_val < opt_fit_value + opt_fit_value*subopt_plots_threshold:
-                            
-                            if not level1_opt_neighs_label:
-                                label = '< opt + 0.1opt'
-                                level1_opt_neighs_label = True
-                            else:
-                                label = None
-                            
-                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
-                            
-                            
-                        elif fit_val < opt_fit_value + 2*opt_fit_value*subopt_plots_threshold:
-                            
-                            if not level2_opt_neighs_label:
-                                label = '< opt + 0.2opt'
-                                level2_opt_neighs_label = True
-                            else:
-                                label = None
-
-                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
-                            
-                            
-                        elif fit_val < opt_fit_value + 3*opt_fit_value*subopt_plots_threshold:
-                            
-                            if not level3_opt_neighs_label:
-                                label = '< opt + 0.3opt'
-                                level3_opt_neighs_label = True
-                            else:
-                                label = None                            
-                            
-                            plt.scatter(x[i], y[i], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
-                    
-                    
-                    #plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'white', backgroundcolor = scalarMap.to_rgba(scale_int[itn_levels_2_sbplts[itn_level]]))
-                    plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'black')
-                    plt.xlabel('All habitats scale', fontsize=8)
-                    plt.ylabel('Constant habitat scale', fontsize=8)
-                    plt.xlim(min_x+0.1, max_x+0.1)
-                    plt.ylim(min_y+0.1, max_y+0.1)
-                    #plt.ylim(0.01, 14)
-                    plt.gca().tick_params(axis='x', labelsize=8)
-                    plt.gca().tick_params(axis='y', labelsize=8)
-                    
-                    '''
-                    count_traces = 0
-                    
-                    # NEED TO update to new FIT_ENTRY DATA STRUCT IF REUSED
-                    for fit_entry in opt_neigh_fits:
-                        
-                        x_temp_h = fit_entry['x_temp_h']
-                        const_h = fit_entry['const_h'] 
-                        sim_key = fit_entry['sim_key']
-                        
-                        marker = self.get_marker(sim_key, count_traces)
-    
-                        plt.scatter(x_temp_h, const_h, c = 'black', marker = marker, s = 20, facecolor='none', zorder=100)
-                        
-                        count_traces = count_traces + 1
-                    '''
-                
-            #plt.subplot(gs[itn_levels_2_sbplts[best_fit_itn_level], 0])
-            plt.subplot(gs[0,0])
+            for i,(err_surface_type, err_surface_title) in enumerate(err_surface_types.iteritems()):
             
-            cluster_record = self.best_fits[cluster_id]
-            opt_itn = cluster_record['ITN_cov']
-            opt_drug = cluster_record['MSAT_cov']
-            plt.scatter(opt_x_temp_h, opt_const_h, c = 'red', marker = 'D', s = 60, facecolor='green', zorder=100, label='Best fit')
-            #plt.annotate(opt_fit_value, opt_x_temp_h, opt_const_h)
-
-            plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=8)
+                for j,group_key in enumerate(error_points.keys()):
+                    
+                    itn_level = error_points[group_key]['itn_level']
+                    drug_coverage = error_points[group_key]['drug_coverage']
+                    
+                    # currently assume opt_group_key is the same for all err_surface_types
+                    if group_key == opt_group_key: 
+            
+                        debug_p('plot at position (0, ' + str(i) + ') in grid')
+                        plt.subplot(gs[0,i])
+                        x = error_points[group_key]['x_temp_h']
+                        y = error_points[group_key]['const_h']
+                        z = error_points[group_key][err_surface_type]
+                        #print len(z)
+                        res = 125
+                        ttl = err_surface_title
+                        
+                        min_x = np.min(x)
+                        min_y = np.min(y)
+                        
+                        max_x = np.max(x)
+                        max_y = np.max(y)
+                    
+                        #f = interpolate.interp2d(x, y, z)
+                    
+                        xi = np.linspace(min_x, max_x , res)
+                        yi = np.linspace(min_y, max_y , res)
+                        
+                        zi = griddata(x,y,z,xi,yi)
+                        
+                        #xig, yig = np.meshgrid(xi, yi)
+                        #zig = f(xi,yi)
+    
+                        #rbf = Rbf(x, y, z, epsilon=2)
+                        #zig = rbf(xig, yig)
+                    
+                        #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.cm.hot)
+                        #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'), vmin=0.475, vmax=0.8)
+                        #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'))
+                        #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'), vmin = min_residual, vmax = max_residual)
+                        rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'))
+                        #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.get_cmap('paired'))
+                        #rmse_pl.cmap.set_over('black')
+                        #rmse_pl.cmap.set_under('grey')
+                        cb = plt.colorbar(rmse_pl)
+    
+                        cb.set_label(ttl + ' residual', fontsize=8)
+                        cb.ax.tick_params(labelsize=8)    
+                        #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('Paired'))
+                        
+                        level1_opt_neighs_label = False
+                        level2_opt_neighs_label = False
+                        level3_opt_neighs_label = False
+                        for k,fit_val in enumerate(z):
+                            
+                            if fit_val < opt_fit[err_surface_type]['value'] + opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                
+                                if not level1_opt_neighs_label:
+                                    label = '< opt + 0.1opt'
+                                    level1_opt_neighs_label = True
+                                else:
+                                    label = None
+                                
+                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
+                                
+                                
+                            elif fit_val < opt_fit[err_surface_type]['value'] + 2*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                
+                                if not level2_opt_neighs_label:
+                                    label = '< opt + 0.2opt'
+                                    level2_opt_neighs_label = True
+                                else:
+                                    label = None
+    
+                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
+                                
+                                
+                            elif fit_val < opt_fit[err_surface_type]['value'] + 3*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                
+                                if not level3_opt_neighs_label:
+                                    label = '< opt + 0.3opt'
+                                    level3_opt_neighs_label = True
+                                else:
+                                    label = None                            
+                                
+                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
+                        
+                        
+                        #plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'white', backgroundcolor = scalarMap.to_rgba(scale_int[itn_levels_2_sbplts[itn_level]]))
+                        plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'black')
+                        plt.xlabel('All habitats scale', fontsize=8)
+                        plt.ylabel('Constant habitat scale', fontsize=8)
+                        plt.xlim(min_x+0.1, max_x+0.1)
+                        plt.ylim(min_y+0.1, max_y+0.1)
+                        #plt.ylim(0.01, 14)
+                        plt.gca().tick_params(axis='x', labelsize=8)
+                        plt.gca().tick_params(axis='y', labelsize=8)
+                        
+                        '''
+                        count_traces = 0
+                        
+                        # NEED TO update to new FIT_ENTRY DATA STRUCT IF REUSED
+                        for fit_entry in opt_neigh_fits:
+                            
+                            x_temp_h = fit_entry['x_temp_h']
+                            const_h = fit_entry['const_h'] 
+                            sim_key = fit_entry['sim_key']
+                            
+                            marker = self.get_marker(sim_key, count_traces)
+        
+                            plt.scatter(x_temp_h, const_h, c = 'black', marker = marker, s = 20, facecolor='none', zorder=100)
+                            
+                            count_traces = count_traces + 1
+                        '''
+                    
+                #plt.subplot(gs[itn_levels_2_sbplts[best_fit_itn_level], 0])
+                #debug_p('plot optimal at position (0, ' + str(i) + ') in grid')
+                plt.subplot(gs[0,i])
                 
+                cluster_record = self.best_fits[cluster_id]
+                opt_itn = cluster_record['ITN_cov']
+                opt_drug = cluster_record['MSAT_cov']
+                plt.scatter(opt_fit[err_surface_type]['temp_h'], opt_fit[err_surface_type]['const_h'], c = 'red', marker = 'D', s = 60, facecolor='green', zorder=100, label='Best fit')
+                #plt.annotate(opt_fit_value, opt_x_temp_h, opt_const_h)
+    
+                plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=8)
+                    
             plt.tight_layout()
             output_plot_file_path = os.path.join(self.root_sweep_dir, err_surfaces_plots_dir, err_surfaces_base_file_name + cluster_id +'.png')
             plt.savefig(output_plot_file_path, dpi = 300, format='png')
             plt.close()
-        
+            
             count = count + 1
 
                 

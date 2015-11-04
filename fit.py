@@ -8,6 +8,9 @@ class Fit:
         self.type = type
         self.min_residual = float('inf')
         self.max_residual = 0.0
+        self.min_penalties = None
+        self.min_mses = None
+        
     
     def get_type(self):
         return self.type
@@ -20,6 +23,12 @@ class Fit:
     
     def get_max_residual(self):
         return self.max_residual
+    
+    def get_min_penalties(self):
+        return self.min_penalties
+    
+    def get_min_mses(self):
+        return self.min_mses
     
     def fit(self):
         
@@ -44,8 +53,24 @@ class Fit:
         
         ref = self.fitting_set.get_ref()
         
-        mmse_distance = float('inf')
         
+        min_distance = float('inf')
+        min_mses = {}
+        min_penalties = {}
+        
+        
+        # assume all models have the same objectives and initialize min obj penalty to inf
+        # initialize model minimizer to first model in list
+        for obj in models_list[0].get_objectives():
+            min_penalties[obj.get_name()] = {} 
+            min_penalties[obj.get_name()]['value'] = float('inf')
+            min_penalties[obj.get_name()]['model'] = models_list[0]
+             
+            min_mses[obj.get_name()] = {}
+            min_mses[obj.get_name()]['value'] = float('inf')
+            min_mses[obj.get_name()]['model'] = models_list[0]
+            
+
         best_fit = None
         
         debug_p(len(models_list))
@@ -69,6 +94,15 @@ class Fit:
                     mse = model.get_cached_mse()
                 
                 if not mse == None:
+                    
+                    if mse <= min_mses[obj.get_name()]['value']:
+                       min_mses[obj.get_name()]['value'] = mse
+                       min_mses[obj.get_name()]['model'] = model
+                       
+                    if obj.get_model_penalty() <= min_penalties[obj.get_name()]:
+                       min_penalties[obj.get_name()]['value'] = obj.get_model_penalty()
+                       min_penalties[obj.get_name()]['model'] = model  
+                    
                     if distance == None:
                         #debug_p('obj weight: ' + str(obj.get_weight()))
                         #debug_p('obj model penalty: ' + str(obj.get_model_penalty()))
@@ -82,31 +116,34 @@ class Fit:
             
             if distance:
                 
-                # a bit redundant since we also find mmse_distance; will need to adjust
+                # a bit redundant since we also find min_distance; will need to adjust
                 if distance < self.min_residual:
                     self.min_residual = distance
                     
                 if distance > self.max_residual:
                     self.max_residual = distance
                     
-                if distance <= mmse_distance:
+                if distance <= min_distance:
                    
-                   debug_p('current best distance ' + str(mmse_distance))
+                   debug_p('current best distance ' + str(min_distance))
                    if best_fit:
                        #debug_p('current best fit model ' + str(best_fit.get_model_id()))
-                       debug_p('current best fit model mmse' + str(best_fit.get_fit_val()))
+                       debug_p('current best fit model mmse ' + str(best_fit.get_fit_val()))
                    #debug_p('model ' + str(model.get_model_id()))
                    debug_p('improving fit ' + str(distance))
-                   debug_p('fit difference' + str(distance - mmse_distance))
+                   debug_p('fit difference ' + str(distance - min_distance))
                    
-                   mmse_distance = distance
-                   model.set_fit_val(mmse_distance)
+                   min_distance = distance
+                   model.set_fit_val(min_distance)
                    best_fit = model
                 else:
                    model.set_fit_val(distance)
         
         
         #debug_p('best_fit ' + str(best_fit))
+        
+        self.min_mses = min_mses
+        self.min_penalties = min_penalties
         
         return best_fit
                     

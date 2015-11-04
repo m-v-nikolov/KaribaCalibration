@@ -29,6 +29,7 @@ class KaribaModel:
         self.ref_clinical_cases_num_points = 0
         self.sim_data = sim_data
         
+        # pre calculated fits
         self.all_fits = all_fits
         
         self.ref_avg_reinfection_rate = 0.0
@@ -59,9 +60,9 @@ class KaribaModel:
         if not cc_weight == 0:
             
             if not load_cc_penalty:
-                if 'ls_norm' in cc_penalty_model: 
+                if 'ls_folded_norm' in cc_penalty_model: 
                     self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], self.cluster_id)
-                if 'ls_no_norm' in cc_penalty_model: 
+                if 'ls_folded_no_norm' in cc_penalty_model: 
                     self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], self.cluster_id)
                 if 'corr' in cc_penalty_model:
                     self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], self.cluster_id)
@@ -71,7 +72,7 @@ class KaribaModel:
                 
                 if self.all_fits:
                 
-                    if 'ls_norm' in cc_penalty_model: 
+                    if 'ls_folded_norm' in cc_penalty_model: 
                         self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm']
                     elif 'ls_norm_not_folded' in cc_penalty_model:
                         self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm_not_folded']
@@ -106,7 +107,8 @@ class KaribaModel:
     # only non None if rank correlation method cc_penalty is used
     def get_p_val(self):
         return self.p_val
-    
+
+
     def set_reinfection_penalty(self, model_reinfection_rates, cluster_id):
         
         ref_reinfection_rates = cluster_2_reinfection_rates(cluster_id)

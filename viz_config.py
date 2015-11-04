@@ -80,8 +80,6 @@ class VizConfig():
         entry_str = ""
             
         for param, values in tags_data.iteritems():
-            
-            gazetteer_nav_entry['sweep_name'] = self.sweep_name
         
             if len(values) < 6:
                 entry_str = entry_str + "{"
