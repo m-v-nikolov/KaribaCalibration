@@ -3,6 +3,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import math
 
 from scipy import interpolate
 from scipy.interpolate import Rbf
@@ -25,7 +26,8 @@ from utils import warn_p, debug_p
 
 from surv_data_2_ref import surv_data_2_ref as d2f
 
-from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, cc_penalty_model
+from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, cc_penalty_model,\
+    cc_weight
 from kariba_utils import get_cc_model_ref_traces, get_cc_penalty
 
 class PlotUtils():
@@ -212,6 +214,10 @@ class PlotUtils():
                 opt_fit[err_surface_type]['const_h'] = cluster_record[err_surface_type]['const_h']
                 opt_fit[err_surface_type]['temp_h'] = cluster_record[err_surface_type]['temp_h']
                 opt_fit[err_surface_type]['value'] = cluster_record[err_surface_type]['value']
+                
+                if err_surface_type == 'cc_penalty':
+                    opt_fit[err_surface_type]['value'] = opt_fit[err_surface_type]['value']*(math.pow(cc_weight, -1)) # opt_fit of penalties contains the weighted value; hence we reverse the weighting
+                    
                  
             opt_neigh_fits = []
             
@@ -254,8 +260,8 @@ class PlotUtils():
             cNorm  = colors.Normalize(vmin=0, vmax=ymax)
             #scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=pal)
             scalarMap = b2mpl.get_map('Spectral', 'Diverging', 5).mpl_colors
-            
-            for i,(err_surface_type, err_surface_title) in enumerate(err_surface_types.iteritems()):
+            lgds = []
+            for i,(err_surface_type, err_surface_style) in enumerate(err_surface_types.iteritems()):
             
                 for j,group_key in enumerate(error_points.keys()):
                     
@@ -265,14 +271,14 @@ class PlotUtils():
                     # currently assume opt_group_key is the same for all err_surface_types
                     if group_key == opt_group_key: 
             
-                        debug_p('plot at position (0, ' + str(i) + ') in grid')
+                        #debug_p('plot at position (0, ' + str(i) + ') in grid')
                         plt.subplot(gs[0,i])
                         x = error_points[group_key]['x_temp_h']
                         y = error_points[group_key]['const_h']
                         z = error_points[group_key][err_surface_type]
                         #print len(z)
                         res = 125
-                        ttl = err_surface_title
+                        ttl = err_surface_style['title']
                         
                         min_x = np.min(x)
                         min_y = np.min(y)
@@ -305,11 +311,16 @@ class PlotUtils():
     
                         cb.set_label(ttl + ' residual', fontsize=8)
                         cb.ax.tick_params(labelsize=8)    
-                        #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('Paired'))
+                        #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('cool'))
                         
                         level1_opt_neighs_label = False
                         level2_opt_neighs_label = False
                         level3_opt_neighs_label = False
+                        # plot all optimal markers on each surface
+                
+                        for (opt_err_surface_type, opt_err_surface_style) in err_surface_types.iteritems():
+                            plt.scatter(opt_fit[opt_err_surface_type]['temp_h'], opt_fit[opt_err_surface_type]['const_h'], c = 'red', marker = opt_err_surface_style['marker'], s = 60, facecolor='none', edgecolor='red', zorder=100, label= opt_err_surface_style['title'] + ' best fit')
+                        
                         for k,fit_val in enumerate(z):
                             
                             if fit_val < opt_fit[err_surface_type]['value'] + opt_fit[err_surface_type]['value']*subopt_plots_threshold:
@@ -379,14 +390,16 @@ class PlotUtils():
                 cluster_record = self.best_fits[cluster_id]
                 opt_itn = cluster_record['ITN_cov']
                 opt_drug = cluster_record['MSAT_cov']
-                plt.scatter(opt_fit[err_surface_type]['temp_h'], opt_fit[err_surface_type]['const_h'], c = 'red', marker = 'D', s = 60, facecolor='green', zorder=100, label='Best fit')
+                
                 #plt.annotate(opt_fit_value, opt_x_temp_h, opt_const_h)
     
-                plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=8)
+                #lgds.append(plt.legend(bbox_to_anchor=(0., 1, 1., .1), loc=2, ncol=1, borderaxespad=0., fontsize=8))
+                lgds.append(plt.legend(ncol=1,loc='upper center', bbox_to_anchor=(0.,-0.15), borderaxespad=0., fontsize=8, mode='expand'))
+                
                     
             plt.tight_layout()
             output_plot_file_path = os.path.join(self.root_sweep_dir, err_surfaces_plots_dir, err_surfaces_base_file_name + cluster_id +'.png')
-            plt.savefig(output_plot_file_path, dpi = 300, format='png')
+            plt.savefig(output_plot_file_path, dpi = 300, format='png', bbox_extra_artists=lgds, bbox_inches='tight')
             plt.close()
             
             count = count + 1

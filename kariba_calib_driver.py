@@ -130,6 +130,7 @@ if __name__ == '__main__':
               }
     '''
     
+    
     root_sweep_dir = os.path.join(sim_data_dir, sweep_name)
     if not os.path.exists(root_sweep_dir):
         os.mkdir(root_sweep_dir)
@@ -139,7 +140,6 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
-    '''
     multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
@@ -202,9 +202,11 @@ if __name__ == '__main__':
         
     with open(os.path.join(root_sweep_dir, residuals_file), 'w') as res_f:
         json.dump(residuals, res_f, indent = 2)
-    '''
+   
+
         
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
+    
     
     print "Generating gazetteer"
     
@@ -230,3 +232,4 @@ if __name__ == '__main__':
     
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
+    

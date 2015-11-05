@@ -50,6 +50,7 @@ if __name__ == '__main__':
         
         #create respective figure dirs if not existing;         
         
+        
         # create clinical cases plots directory if it doesn't exist
         cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_traces_plots_dir)
         if not os.path.exists(cc_plots_dir):
@@ -89,4 +90,5 @@ if __name__ == '__main__':
         pp.plot_calib_prev_traces()
         
         print "Plotting prevalence traces done for category " + category 
-        print "Plots stored in "  + prev_plots_dir    
+        print "Plots stored in "  + prev_plots_dir
+            

@@ -10,6 +10,7 @@ from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_
 
 from utils import warn_p, debug_p
 
+
 def get_cc_penalty(fit_entry):
     
     if 'corr_folded' in cc_penalty_model:
@@ -18,9 +19,16 @@ def get_cc_penalty(fit_entry):
     if 'corr_not_folded' in cc_penalty_model:
         return fit_entry['fit_terms']['cc_penalty']['corr_not_folded']['penalty']
     
-    else:
-        debug_p('No clinical cases penalty found. This should not happen!')
-        return None
+    if 'ls_folded_norm' in cc_penalty_model: 
+        return fit_entry['fit_terms']['cc_penalty']['ls_norm']
+    elif 'ls_norm_not_folded' in cc_penalty_model:
+        return fit_entry['fit_terms']['cc_penalty']['ls_norm_not_folded']
+                    
+    if 'ls_no_norm' in cc_penalty_model: 
+        return fit_entry['fit_terms']['cc_penalty']['ls_no_norm']
+
+    debug_p('No clinical cases penalty found. This should not happen!')
+    return None
         
 
 def get_sim_key(temp_h, const_h, itn_level, drug_level):

@@ -37,12 +37,12 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.001
+cc_weight = 0.0001
 #cc_weight = 1000
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'corr_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
+cc_penalty_model = 'ls_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
 
 cc_agg_period = 6 # weeks
 cc_agg_fold = True
@@ -91,7 +91,7 @@ load_reinf_penalty = False
 # VISUALIZATION SETTINGS
 subopt_plots_threshold = 0.1 # only plot traces, surfaces that are suboptimal (when required) if the corresponding fit is within some fraction of the optimal (e.g. 0.1)
 
-err_surface_types = {'fit':'Clinical cases + Prevalence', 'cc_penalty':'Clinical cases', 'mse':'Prevalence'}
+err_surface_types = {'fit':{'title':'Clinical cases + Prevalence', 'marker':'*'}, 'cc_penalty':{'title':'Clinical cases', 'marker':'s'}, 'mse':{'title':'Prevalence', 'marker':'o'}}
 
 root_viz_dir = 'visualization'
 kariba_viz_dir = os.path.join(root_viz_dir, 'kariba_viz')

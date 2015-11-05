@@ -37,7 +37,7 @@ class VizConfig():
         # extract penalty model w/o weights
         x = cc_penalty_model.index('_cc_w')
         penalty_model = cc_penalty_model[0:x]
-        
+        model_weight = cc_penalty_model[x+1:]
         
         # if penalties and mse have been pre-cached and are only loaded then assume model re-weighting 
         # find the corresponding existing model and adjust entry, adding reweighting
@@ -51,7 +51,6 @@ class VizConfig():
                     debug_p(entry['model'])
                     debug_p(penalty_model)
                     if entry['model'] == penalty_model:
-                        model_weight = cc_penalty_model[x+1:]
                         entry['select'].append({'name':model_weight, 'value':self.sweep_name})
                         break
                 

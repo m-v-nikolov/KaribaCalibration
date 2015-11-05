@@ -99,7 +99,7 @@ class Fit:
                        min_mses[obj.get_name()]['value'] = mse
                        min_mses[obj.get_name()]['model'] = model
                        
-                    if obj.get_model_penalty() <= min_penalties[obj.get_name()]:
+                    if obj.get_model_penalty() <= min_penalties[obj.get_name()]['value']:
                        min_penalties[obj.get_name()]['value'] = obj.get_model_penalty()
                        min_penalties[obj.get_name()]['model'] = model  
                     
