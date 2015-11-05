@@ -28,9 +28,13 @@ class KaribaFit:
                 
         best_fits = {}
         all_fits = {}
+        #all_fits = {'fit':{'min_residual':float('inf')}, }
         
         all_fits['min_residual'] = float('inf')
         all_fits['max_residual'] = 0.0
+        
+        
+        
         all_fits['models'] = {}
         
         debug_p('category ' + self.category)
@@ -111,7 +115,6 @@ class KaribaFit:
                 best_fits[cluster_id]['ITN_cov'] = itn_level
                 best_fits[cluster_id]['category'] = self.category
                 best_fits[cluster_id]['MSAT_cov'] = drug_coverage_level
-                model_meta_data = best_fit_model.get_meta()
                 best_fits[cluster_id]['sim_id'] = model_meta_data['sim_id']
                 best_fit_meta = best_fit_model.get_meta()
                 best_fits[cluster_id]['sim_key'] = best_fit_meta['sim_key'] 
@@ -128,8 +131,8 @@ class KaribaFit:
                 best_fits[cluster_id]['fit']['const_h'] = const_h
                 best_fits[cluster_id]['fit']['ITN_cov'] = itn_level
                 best_fits[cluster_id]['fit']['MSAT_cov'] = drug_coverage_level
-                best_fits[cluster_id]['fit']['sim_id'] = model_meta_data['sim_id']
-                best_fits[cluster_id]['fit']['sim_key'] = model_meta_data['sim_key']
+                best_fits[cluster_id]['fit']['sim_id'] = best_fit_meta['sim_id']
+                best_fits[cluster_id]['fit']['sim_key'] = best_fit_meta['sim_key']
                 
                 
                 best_fits[cluster_id]['mse'] = {}
@@ -143,7 +146,6 @@ class KaribaFit:
                 best_fits[cluster_id]['mse']['MSAT_cov'] = drug_coverage_level
                 best_fits[cluster_id]['mse']['sim_id'] = model_meta_data['sim_id']
                 best_fits[cluster_id]['mse']['sim_key'] = model_meta_data['sim_key']
-                
                 
                 best_fits[cluster_id]['cc_penalty'] = {}
                 best_fits[cluster_id]['cc_penalty']['value'] = fit.get_min_penalties()['prevalence']['value'] # get clinical penalty for objective prevalence; at present this is just the clinical cases penalty; if reinfection is considered the code needs to be adjusted

@@ -6,9 +6,9 @@ import numpy as np
 
 from datetime import datetime,timedelta
 
-from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model
+from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model, fit_terms_types
 
-from utils import warn_p, debug_p
+from utils import warn_p, debug_p, feature_scale
 
 
 def get_cc_penalty(fit_entry):
@@ -294,7 +294,69 @@ def load_fit_terms(fit_terms_file_path):
         
     return fit_terms
 
+
+# supply fit terms type that containing the fit term hierarchy path in fit_terms.json
+# e.g. clinical cases penalty computed using rank correlation on folded clinical cases timeseries 
+# would have type ['cc_penalty', 'corr_folded', 'penalty']
+
+def normalize_fit_terms(fit_terms_file_path):
     
+    if os.path.exists(fit_terms_file_path):
+        with open(fit_terms_file_path, 'r') as ft_f:
+            fit_terms = json.load(ft_f)
+    else:
+        error_loading_fit_terms()
+    
+    terms = {}
+    for fit_terms_type in fit_terms_types:
+        terms[fit_terms_type] = []
+        
+    for cluster_id, fit_entries in fit_terms:
+        for fit_entry in fit_entries:
+            for fit_terms_type, path in fit_terms_type:
+                terms[fit_terms_type].append(unroll_term(fit_entry, path))
+        
+        for fit_terms_type, path in fit_terms_types:
+            min_term = np.min(terms[fit_terms_type])
+            max_term = np.max(terms[fit_terms_type])
+        
+            if not 'min_terms' in fit_terms[cluster_id]: 
+                fit_terms[cluster_id]['min_terms'] = {}
+            
+            if not 'max_terms' in fit_terms[cluster_id]: 
+                fit_terms[cluster_id]['max_terms'] = {}
+                
+            roll_term(fit_terms[cluster_id]['min_terms'], path, min_term)
+            roll_term(fit_terms[cluster_id]['max_terms'], path, max_term)
+        
+    with open(fit_terms_file_path, 'w') as ft_f:
+        json.dump(fit_terms, ft_f)
+        
+    return fit_terms
+            
+
+def unroll_term(fit_entry, path):
+    if len(path) == 1: # if only one level in hierarchy left return
+        return fit_entry[path[0]]
+    else:
+        fit_entry = fit_entry[path[0]]
+        path = path[1:]
+        unroll_term(fit_entry, path)
+        
+
+def roll_term(fit_term, path, extremal_term):
+   
+    if len(path) == 1:
+        fit_term[path[0]] = extremal_term
+        return fit_term
+   
+    else:
+        if not path[0] in fit_term: 
+            fit_term[path[0]] = {}
+        path = path[1:]
+        roll_term(fit_term, path, extremal_term)
+        
+          
 def error_loading_fit_terms():
     
     debug_p('Could not load fit terms! Check whether fit terms file at ' + os.path.join(sim_data_dir, fit_terms_file) + ' is accessible.')

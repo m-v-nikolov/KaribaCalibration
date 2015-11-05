@@ -37,7 +37,7 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.0001
+cc_weight = 0.1
 #cc_weight = 1000
 reinf_weight = 0
 
@@ -85,6 +85,17 @@ all_fits_file =  cc_penalty_model + '_all_fits.json'
 load_cc_penalty = True
 load_prevalence_mse = True
 load_reinf_penalty = False
+scale_fit_terms = True
+
+use_scaled_fit_terms = True
+
+# add fit terms here (e.g. penalty types) as objective function options change
+# reflect the fit_terms.json schema
+fit_terms_types = {
+                   'corr_folded':['cc_penalty','corr_folded','penalty'],
+                   'ls_norm':['cc_penalty', 'ls_norm'],
+                   'mse':['mse']
+                  }
 
 
 

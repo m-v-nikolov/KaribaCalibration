@@ -6,8 +6,8 @@ import gc
 from comps_2_sim_data import get_sweep_results, combine_sweep_results
 from sim_data_2_models import calib_data_2_models_list
 
-from kariba_settings import  load_cc_penalty, load_prevalence_mse, load_reinf_penalty, sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, residuals_file, fit_terms_file, cc_penalty_model
-from kariba_utils import load_fit_terms
+from kariba_settings import  load_cc_penalty, load_prevalence_mse, load_reinf_penalty, sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, residuals_file, fit_terms_file, cc_penalty_model, scale_fit_terms
+from kariba_utils import load_fit_terms, normalize_fit_terms
 from kariba_fit import KaribaFit
 
 
@@ -28,8 +28,7 @@ def prepare_calib_files(cat_record):
         comb_calib_dir = os.path.join(sim_data_dir, category) 
     
         combine_sweep_results(comb_base_dirs, sweep_dir)
-        
-        
+
 
 def calibrate(category, sweep_dir):
     
@@ -38,9 +37,12 @@ def calibrate(category, sweep_dir):
     with open(calib_file_path, 'r') as calib_f:
         calib_data = json.load(calib_f)
         
-    
     fit_terms_file_path = os.path.join(sweep_dir, fit_terms_file)
-    fit_terms = load_fit_terms(fit_terms_file_path)
+    
+    if scale_fit_terms:
+        fit_terms = normalize_fit_terms(fit_terms_file_path)
+    else:
+        fit_terms = load_fit_terms(fit_terms_file_path)
         
     kariba_fit_cat = KaribaFit(category, calib_data, fit_terms = fit_terms)
 

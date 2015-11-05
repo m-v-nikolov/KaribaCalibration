@@ -8,8 +8,8 @@ from utils import is_number, val_scale, feature_scale, warn_p, debug_p
 from sim_data_2_models import sim_channels_2_model, sim_report_channels_model_format
 
 from kariba_settings import load_cc_penalty, load_prevalence_mse, load_reinf_penalty, cc_correction_factor, cc_agg_fold, cc_weight, reports_channels, calib_node_pop, cluster_2_pops, hfca_2_pop, cluster_2_reinfection_rates, cluster_2_cc, cc_penalty_model, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date,\
-    reinf_weight
-from kariba_utils import get_cc_model_ref_traces, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h, error_loading_fit_terms
+    reinf_weight, scale_fit_terms, fit_terms_types
+from kariba_utils import get_cc_model_ref_traces, sim_meta_2_itn_level, sim_meta_2_drug_cov, sim_meta_2_temp_h, sim_meta_2_const_h, error_loading_fit_terms, unroll_term
 
 
 class KaribaModel:
@@ -18,6 +18,7 @@ class KaribaModel:
 
         self.cluster_id = cluster_id
         self.reinfection_penalty = reinfection_penalty
+        self.reinfection_penalty_term = reinfection_penalty
         self.reinfection_penalty_weight = reinfection_penalty_weight
         self.ref_reinfection_num_points = 0
         
@@ -25,6 +26,7 @@ class KaribaModel:
         self.p_val = None
         
         self.clinical_cases_penalty = clinical_cases_penalty
+        self.clinical_cases_penalty_term = clinical_cases_penalty 
         self.clinical_cases_penalty_weight = clinical_cases_penalty_weight
         self.ref_clinical_cases_num_points = 0
         self.sim_data = sim_data
@@ -39,7 +41,7 @@ class KaribaModel:
         self.model = model
         
         model_meta = self.model.get_meta()
-        sim_key = model_meta['sim_key']
+        self.sim_key = model_meta['sim_key']
         
         #debug_p('model id during kariba conversion after model assignment ' + str(self.model.get_model_id()))
         
@@ -51,54 +53,93 @@ class KaribaModel:
                 self.set_reinfection_penalty(model_report_channels['reinfections'], self.cluster_id)
             else:
                 if self.all_fits:
-                    self.reinfection_penalty = self.all_fits[self.cluster_id][sim_key]['reinf_penalty']
+                    self.reinfection_penalty = self.all_fits[self.cluster_id][self.sim_key]['reinf_penalty']
                     self.reinfection_penalty_weight = reinf_weight
                 else:
                     error_loading_fit_terms('reinfection penalty')
                     
-        
-        if not cc_weight == 0:
-            
-            if not load_cc_penalty:
-                if 'ls_folded_norm' in cc_penalty_model: 
-                    self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], self.cluster_id)
-                if 'ls_folded_no_norm' in cc_penalty_model: 
-                    self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], self.cluster_id)
-                if 'corr' in cc_penalty_model:
-                    self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], self.cluster_id)
-                    
-                    
-            else:
-                
-                if self.all_fits:
-                
-                    if 'ls_folded_norm' in cc_penalty_model: 
-                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm']
-                    elif 'ls_norm_not_folded' in cc_penalty_model:
-                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_norm_not_folded']
-                    
-                    if 'ls_no_norm' in cc_penalty_model: 
-                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['ls_no_norm']
-                    if 'corr_folded' in cc_penalty_model:
-                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['penalty']
-                        self.rho = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['rho']
-                        self.p_val = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_folded']['p_val']
-                    if 'corr_not_folded' in cc_penalty_model:
-                        self.clinical_cases_penalty = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['penalty']
-                        self.rho = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['rho']
-                        self.p_val = self.all_fits[self.cluster_id][sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['p_val']
-                        
-                    self.clinical_cases_penalty_weight = cc_weight
-                else:
-                    error_loading_fit_terms('clinical cases penalty')
-                
+
+        if not load_cc_penalty:
+            if 'ls_folded_norm' in cc_penalty_model: 
+                self.set_clinical_cases_penalty_by_ls(self.sim_data['cc'], self.cluster_id)
+            if 'ls_folded_no_norm' in cc_penalty_model: 
+                self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], self.cluster_id)
+            if 'corr' in cc_penalty_model:
+                self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], self.cluster_id)
+                 
         else:
-            self.clinical_cases_penalty = 0.0
-            self.clinical_cases_penalty_weight = 0.0
+            if self.all_fits:
+                max_term = 0
+                min_term = 0
+                if 'ls_folded_norm' in cc_penalty_model: 
+                    self.clinical_cases_penalty = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['ls_norm'] 
+                    if scale_fit_terms:                        
+                        max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['ls_norm'])
+                        min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['ls_norm']) 
+
+                elif 'ls_norm_not_folded' in cc_penalty_model:
+                    self.clinical_cases_penalty = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['ls_norm_not_folded']
+                    if scale_fit_terms:
+                        
+                        # change path in fit_terms_types for ls_norm_not_folded if we use that again; need to add corresponding entry as well 
+                        # if we are not using that feature again, remove these lines altogether; this is just a placeholder
+                        max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['ls_norm'])
+                        min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['ls_norm'])
+                
+                
+                if 'ls_no_norm' in cc_penalty_model: 
+                    self.clinical_cases_penalty = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['ls_no_norm']
+                    if scale_fit_terms:
+                        
+                        # change path in fit_terms_types for ls_norm_not_folded if we use that again; need to add corresponding entry as well 
+                        # if we are not using that feature again, remove these lines altogether; this is just a placeholder
+                        max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['ls_norm'])
+                        min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['ls_norm'])
+                        
+                if 'corr_folded' in cc_penalty_model:
+                    self.clinical_cases_penalty = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_folded']['penalty']
+                    
+                    if scale_fit_terms:
+                        max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['corr_folded'])
+                        min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['corr_folded'])
+                    
+                    
+                    self.rho = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_folded']['rho']
+                    self.p_val = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_folded']['p_val']
+                    
+
+                if 'corr_not_folded' in cc_penalty_model:
+                    self.clinical_cases_penalty = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['penalty']
+                    
+                    if scale_fit_terms:
+                        
+                        # change path in fit_terms_types for ls_norm_not_folded if we use that again; need to add corresponding entry as well 
+                        # if we are not using that feature again, remove these lines altogether; this is just a placeholder
+                        max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['corr_not_folded'])
+                        min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['corr_not_folded'])
+                    
+                    
+                    self.rho = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['rho']
+                    self.p_val = self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['cc_penalty']['corr_not_folded']['p_val']
+                
+                self.clinical_cases_penalty_term = self.clinical_cases_penalty
+                if scale_fit_terms: # should have found proper min_term and max_term if scale_fit_terms is True
+                    self.clinical_cases_penalty = val_scale(self.clinical_cases_penalty, max_term, min_term)
+                    
+                self.clinical_cases_penalty_weight = cc_weight
+                
+            else:
+                error_loading_fit_terms('clinical cases penalty')
             
                     
         self.set_model_penalties()
 
+
+    def get_cc_penalty(self):
+        return self.clinical_cases_penalty
+    
+    def get_cc_penalty_weight(self):
+        return self.clinical_cases_penalty_weight
     
     # only non None if rank correlation method cc_penalty is used
     def get_rho(self):
@@ -107,6 +148,9 @@ class KaribaModel:
     # only non None if rank correlation method cc_penalty is used
     def get_p_val(self):
         return self.p_val
+    
+    def get_cc_penalty_term(self):
+        return self.clinical_cases_penalty_term
 
 
     def set_reinfection_penalty(self, model_reinfection_rates, cluster_id):
@@ -360,30 +404,30 @@ class KaribaModel:
             fit_terms['cc_penalty'] = {}
 
         if 'ls_norm' in cc_penalty_model: 
-            fit_terms['cc_penalty']['ls_norm'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['ls_norm'] = self.clinical_cases_penalty_term
         elif 'ls_norm_not_folded' in cc_penalty_model:
-            fit_terms['cc_penalty']['ls_norm_not_folded'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['ls_norm_not_folded'] = self.clinical_cases_penalty_term
             
         if 'ls_no_norm' in cc_penalty_model: 
-            fit_terms['cc_penalty']['ls_no_norm'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['ls_no_norm'] = self.clinical_cases_penalty_term
              
         if 'corr_folded' in cc_penalty_model:
             if not 'corr_folded' in fit_terms['cc_penalty']:
                 fit_terms['cc_penalty']['corr_folded'] = {}
-            fit_terms['cc_penalty']['corr_folded']['penalty'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['corr_folded']['penalty'] = self.clinical_cases_penalty_term
             fit_terms['cc_penalty']['corr_folded']['rho'] = self.get_rho()
             fit_terms['cc_penalty']['corr_folded']['p_val'] = self.get_p_val()
             
         if 'corr_not_folded' in cc_penalty_model:
             if not 'corr_not_folded' in fit_terms['cc_penalty']:
                 fit_terms['cc_penalty']['corr_not_folded'] = {}
-            fit_terms['cc_penalty']['corr_not_folded']['penalty'] = self.clinical_cases_penalty
+            fit_terms['cc_penalty']['corr_not_folded']['penalty'] = self.clinical_cases_penalty_term
             fit_terms['cc_penalty']['corr_not_folded']['rho'] = self.get_rho()
             fit_terms['cc_penalty']['corr_not_folded']['p_val'] = self.get_p_val()
             
-        fit_terms['reinf_penalty'] = self.reinfection_penalty
+        fit_terms['reinf_penalty'] = self.reinfection_penalty_term
         
-        fit_terms['mse'] = self.get_mse()
+        fit_terms['mse'] = self.get_cached_mse_term()
             
         fit_entry = {}
         fit_entry[model_meta['sim_key']] = {
@@ -440,10 +484,22 @@ class KaribaModel:
     def get_cached_mse(self):
         
         if self.all_fits:
-            return self.all_fits[self.cluster_id][sim_key]['fit_terms']['mse']
+            if scale_fit_terms:
+                min_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['min_terms'], fit_terms_types['mse'])
+                max_term = unroll_term(self.all_fits[self.cluster_id][self.sim_key]['max_terms'], fit_terms_types['mse'])
+                return val_scale(self.all_fits[self.cluster_id][self.sim_key]['fit_terms'], max_term, min_term) 
+            else:
+                return self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['mse']
+            
         else:
             error_loading_fit_terms('mse')
-        
+            
+    # always return the mse term as recorded prior to weighing/rescaling/normalization, etc.
+    def get_cached_mse_term(self):
+        if self.all_fits:
+            return self.all_fits[self.cluster_id][self.sim_key]['fit_terms']['mse']
+        else: 
+            error_loading_fit_terms('mse')
          
         
     def add_objective(self, name, m_points, weight = 0.0, m_points_weights = [], fit_penalty = 0.0):

@@ -282,9 +282,13 @@ class PlotUtils():
                         
                         min_x = np.min(x)
                         min_y = np.min(y)
+                        min_z = np.min(z)
                         
                         max_x = np.max(x)
                         max_y = np.max(y)
+                        max_z = np.max(z)
+                        
+                        
                     
                         #f = interpolate.interp2d(x, y, z)
                     
@@ -307,7 +311,8 @@ class PlotUtils():
                         #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.get_cmap('paired'))
                         #rmse_pl.cmap.set_over('black')
                         #rmse_pl.cmap.set_under('grey')
-                        cb = plt.colorbar(rmse_pl)
+                        ticks = self.get_colorbar_ticks(min_z, max_z)
+                        cb = plt.colorbar(rmse_pl, ticks = ticks, spacing='proportional')
     
                         cb.set_label(ttl + ' residual', fontsize=8)
                         cb.ax.tick_params(labelsize=8)    
@@ -555,3 +560,38 @@ class PlotUtils():
             marker = self.fit_entries_2_markers[sim_key]
             
         return marker
+    
+    
+    def get_colorbar_ticks(self, min_z, max_z):
+        
+        blevels = []
+        ticks = [min_z]
+        
+        current = 0.1
+        previous = 0.0
+        index = 0
+        
+        self.generate_blevel_sequence(blevels, current, previous, index)
+    
+        for blevel in blevels:
+            tick = min_z + blevel*min_z
+            if tick < max_z:
+                ticks.append(tick)
+            else: 
+                break
+                
+        return ticks
+            
+        
+    def generate_blevel_sequence(self, blevels, current, previous, index):
+        if index == 10:
+            return current
+        else:
+            next = current + previous
+            blevels.append(next)
+            return self.generate_blevel_sequence(blevels, next, current, index + 1)
+        
+        
+        
+        
+        
