@@ -9,6 +9,7 @@ from datetime import datetime,timedelta
 from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model, fit_terms_types
 
 from utils import warn_p, debug_p, feature_scale
+from copy import deepcopy
 
 
 def get_cc_penalty(fit_entry):
@@ -163,7 +164,7 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     with open('fold_bins_before_cases_'+ cluster_id+'.json','w') as d_ccs_f:
         json.dump(fold_bins, d_ccs_f, indent = 4)
     '''
-        
+    
     for i, (date, cases) in enumerate(ccs_model):
         cases_period = cases_period + cases
         if (i+1) % (6*7) == 0 or (i+1) == len(ccs_model):
@@ -201,16 +202,20 @@ def update_fold_bins(date, cases_model, cases_ref, fold_bins):
     
     jan_1 = pd.to_datetime( '1/1/' + str(date.year) ) # get jan 1 of cur_date's year 
     num_days_in_fold = ((pd.to_datetime(date) - jan_1)  / np.timedelta64(1, 'D')).astype(int) # get num days in fold since jan 1 
-        
+    
     if fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_model'] =='nan':
         fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_model'] = cases_model
+        fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] = 1
     else:
         fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_model'] = fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_model'] + cases_model
+        fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] = fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] + 1 
     
     if fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_ref'] =='nan':
         fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_ref'] = cases_ref
+        fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] = 1
     else:
         fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_ref'] = fold_bins[num_days_in_fold/(cc_agg_period * 7)]['cases_ref'] + cases_ref
+        fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] = fold_bins[num_days_in_fold/(cc_agg_period * 7)]['num_updates'] + 1
     
     
     '''
@@ -249,8 +254,8 @@ def fold_nan_clean(fold_bins):
     
     for fold_idx in sorted(fold_bins): # sort to preserve the bins order in time
         if not (fold_bins[fold_idx]['cases_model'] == 'nan' or fold_bins[fold_idx]['cases_ref'] == 'nan'):
-           ccs_folded_model.append(fold_bins[fold_idx]['cases_model'])
-           ccs_folded_ref.append(fold_bins[fold_idx]['cases_ref'])
+           ccs_folded_model.append(fold_bins[fold_idx]['cases_model']/(fold_bins[fold_idx]['num_updates'] + 0.0)) # average by the number of updates / years data has been aggregated per bin
+           ccs_folded_ref.append(fold_bins[fold_idx]['cases_ref']/(fold_bins[fold_idx]['num_updates'] + 0.0)) # average by the number of updates / years data has been aggregated per bin
            
     return ccs_folded_model, ccs_folded_ref
             
@@ -308,27 +313,52 @@ def normalize_fit_terms(fit_terms_file_path):
         error_loading_fit_terms()
     
     terms = {}
-    for fit_terms_type in fit_terms_types:
+
+    for fit_terms_type, path in fit_terms_types.iteritems():
         terms[fit_terms_type] = []
+    
+    count = 0
+    for cluster_id, fit_entries in fit_terms.iteritems():
         
-    for cluster_id, fit_entries in fit_terms:
-        for fit_entry in fit_entries:
-            for fit_terms_type, path in fit_terms_type:
-                terms[fit_terms_type].append(unroll_term(fit_entry, path))
+        #if not 'min_terms' in fit_terms[cluster_id]: 
+        fit_terms[cluster_id]['min_terms'] = {}
+                                    
+        #if not 'max_terms' in fit_terms[cluster_id]: 
+        fit_terms[cluster_id]['max_terms'] = {}
+
         
-        for fit_terms_type, path in fit_terms_types:
+        for sim_key, fit_entry in fit_entries.iteritems():
+            
+            if not (sim_key == 'min_terms'  or sim_key == 'max_terms'):
+
+                for fit_terms_type, path in fit_terms_types.iteritems():
+                    fit_entry_copy = deepcopy(fit_entry)
+                    path_copy = deepcopy(path)
+                        
+                    terms[fit_terms_type].append(unroll_term(fit_entry_copy['fit_terms'], path_copy))
+        
+        for fit_terms_type, path in fit_terms_types.iteritems():
             min_term = np.min(terms[fit_terms_type])
             max_term = np.max(terms[fit_terms_type])
-        
-            if not 'min_terms' in fit_terms[cluster_id]: 
-                fit_terms[cluster_id]['min_terms'] = {}
             
-            if not 'max_terms' in fit_terms[cluster_id]: 
-                fit_terms[cluster_id]['max_terms'] = {}
+            path_copy = deepcopy(path)
+            
+            if not fit_terms_type in fit_terms[cluster_id]['min_terms']:
+                fit_terms[cluster_id]['min_terms'][fit_terms_type] = {}
                 
-            roll_term(fit_terms[cluster_id]['min_terms'], path, min_term)
-            roll_term(fit_terms[cluster_id]['max_terms'], path, max_term)
-        
+            if not fit_terms_type in fit_terms[cluster_id]['max_terms']:
+                fit_terms[cluster_id]['max_terms'][fit_terms_type] = {}
+                            
+            fit_terms[cluster_id]['min_terms'][fit_terms_type] = roll_term(fit_terms[cluster_id]['min_terms'][fit_terms_type], path_copy, min_term)
+            fit_terms[cluster_id]['max_terms'][fit_terms_type] = roll_term(fit_terms[cluster_id]['max_terms'][fit_terms_type], path_copy, max_term)
+        count = count + 1
+    
+    '''
+    debug_p( fit_terms.keys() )
+    debug_p( fit_terms['81102_4']['min_terms'] )
+    debug_p( fit_terms['81102_4']['max_terms'] )
+    '''
+            
     with open(fit_terms_file_path, 'w') as ft_f:
         json.dump(fit_terms, ft_f)
         
@@ -336,26 +366,44 @@ def normalize_fit_terms(fit_terms_file_path):
             
 
 def unroll_term(fit_entry, path):
-    if len(path) == 1: # if only one level in hierarchy left return
+    if len(path) == 1: # if only one level in hierarchy left, return
         return fit_entry[path[0]]
     else:
         fit_entry = fit_entry[path[0]]
         path = path[1:]
-        unroll_term(fit_entry, path)
-        
+        return unroll_term(fit_entry, path)
+         
 
+# can be implemented better w/ recursion
 def roll_term(fit_term, path, extremal_term):
-   
-    if len(path) == 1:
-        fit_term[path[0]] = extremal_term
-        return fit_term
-   
-    else:
-        if not path[0] in fit_term: 
-            fit_term[path[0]] = {}
-        path = path[1:]
-        roll_term(fit_term, path, extremal_term)
+    path_copy = deepcopy(path)
+    
+    fit_term_nl = fit_term
+    
+    idx = 0
+    while path[0] in fit_term_nl:
+        fit_term_nl = fit_term_nl[path[0]]
         
+        if len(path[1:]) == 1 and path[1] in fit_term_nl: # check if only one entry is left in path and if that entry is in dictionary update it with the corresponding value 
+            fit_term_nl[path[1]] = extremal_term
+            return fit_term
+        
+        path = path[1:]
+        idx = idx + 1
+        
+                          
+    while idx < len(path_copy):
+         
+        if idx + 1 == len(path_copy):
+            fit_term_nl.update({path_copy[idx]:extremal_term})
+        else: 
+            fit_term_nl.update({path_copy[idx]:{}})
+        
+        fit_term_nl = fit_term_nl[path_copy[idx]]
+        idx = idx + 1 
+
+    return fit_term
+
           
 def error_loading_fit_terms():
     

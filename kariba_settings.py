@@ -37,12 +37,12 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 0.1
+cc_weight = 2
 #cc_weight = 1000
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'ls_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
+cc_penalty_model = 'corr_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
 
 cc_agg_period = 6 # weeks
 cc_agg_fold = True
@@ -51,6 +51,9 @@ fold_start_date = pd.to_datetime('1/1/2011')
 fold_end_date = pd.to_datetime('2/9/2014')
 
 cc_correction_factor = 0.33
+
+# rdt threshold above which the dtk sim cannot reach prevalence using current detection threshold and hrp2 model
+rdt_max = 0.52
 
 traces_plots_dir = 'prev_traces'
 traces_base_file_name = 'prev_trace_'
@@ -82,12 +85,12 @@ all_fits_file =  cc_penalty_model + '_all_fits.json'
 
 
 # fit terms settings
-load_cc_penalty = True
-load_prevalence_mse = True
+load_cc_penalty = False
+load_prevalence_mse = False
 load_reinf_penalty = False
 scale_fit_terms = True
 
-use_scaled_fit_terms = True
+#use_scaled_fit_terms = False
 
 # add fit terms here (e.g. penalty types) as objective function options change
 # reflect the fit_terms.json schema

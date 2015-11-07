@@ -203,7 +203,7 @@ if __name__ == '__main__':
     with open(os.path.join(root_sweep_dir, residuals_file), 'w') as res_f:
         json.dump(residuals, res_f, indent = 2)
    
-
+    
         
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
@@ -232,4 +232,3 @@ if __name__ == '__main__':
     
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
-    

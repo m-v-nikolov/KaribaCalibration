@@ -5,7 +5,7 @@ from sim_data_2_models import calib_data_2_models_list
 from surv_data_2_ref import surv_data_2_ref as d2f
 
 
-from kariba_settings import load_prevalence_mse, category_2_clusters as c2c, cluster_2_prevs as c2p, objectives_channel_codes, cluster_2_itn_traj, cluster_2_drug_cov
+from kariba_settings import load_prevalence_mse, category_2_clusters as c2c, cluster_2_prevs as c2p, objectives_channel_codes, cluster_2_itn_traj, cluster_2_drug_cov, rdt_max
 from kariba_model import KaribaModel
 from kariba_utils import get_sim_group_key, get_model_params
 
@@ -86,6 +86,12 @@ class KaribaFit:
                         
             ref = d2f(surv_data)
             
+            # adjust highest possible fit to account for RDT+ model in dtk not reflecting reality at the upper end
+            obj_prev = ref.get_obj_by_name('prevalence')
+            d_points = obj_prev.get_points()
+            obj_prev.set_points([max(point, rdt_max) for point in d_points])
+            
+            
             fitting_set = FittingSet(cluster_id, cluster_models, ref)
             
             if load_prevalence_mse:
@@ -107,7 +113,7 @@ class KaribaFit:
             if best_fit_model: 
             
                 temp_h, const_h, itn_level, drug_coverage_level = get_model_params(best_fit_model)
-    
+                best_fit_meta = best_fit_model.get_meta()
                 best_fits[cluster_id] = {}
                 best_fits[cluster_id]['habs'] = {}
                 best_fits[cluster_id]['habs']['const_h'] = const_h 
@@ -115,8 +121,7 @@ class KaribaFit:
                 best_fits[cluster_id]['ITN_cov'] = itn_level
                 best_fits[cluster_id]['category'] = self.category
                 best_fits[cluster_id]['MSAT_cov'] = drug_coverage_level
-                best_fits[cluster_id]['sim_id'] = model_meta_data['sim_id']
-                best_fit_meta = best_fit_model.get_meta()
+                best_fits[cluster_id]['sim_id'] = best_fit_meta['sim_id']
                 best_fits[cluster_id]['sim_key'] = best_fit_meta['sim_key'] 
                 best_fits[cluster_id]['group_key'] = best_fit_meta['group_key']
                 best_fits[cluster_id]['fit_value'] = best_fit_model.get_fit_val()

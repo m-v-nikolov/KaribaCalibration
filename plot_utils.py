@@ -92,7 +92,7 @@ class PlotUtils():
             
     
             ax.set_ylim(0,1)
-            ax.set_xlim(2180,3010)    
+            ax.set_xlim(2150,3010)    
             
             opt_sim_key = cluster_record['sim_key']
             opt_group_key = cluster_record['group_key']
@@ -105,7 +105,7 @@ class PlotUtils():
             
             opt_prev_trace = self.calib_data[opt_group_key][opt_sim_key]['prevalence']
             
-            ax.plot(range(2180, 3000), opt_prev_trace[2179:2999], alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn))
+            ax.plot(range(2150, 3000), opt_prev_trace[2149:2999], alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn))
             
             ref = self.get_ref(cluster_id)
             
@@ -153,7 +153,7 @@ class PlotUtils():
                 marker = self.get_marker(sim_key, count_traces)
                 #ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size, label = 'eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h))
                 #ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5,  marker = marker, markersize = 0.5*opt_marker_size)
-                ax.plot(range(2180, 3000), prev_trace[2179:2999], alpha=0.75, linewidth=0.5)
+                ax.plot(range(2150, 3000), prev_trace[2149:2999], alpha=0.75, linewidth=0.5)
                 
                 
                 for i,prev in enumerate(obs_prevs):                    
@@ -303,20 +303,30 @@ class PlotUtils():
                         #rbf = Rbf(x, y, z, epsilon=2)
                         #zig = rbf(xig, yig)
                     
+                        blevels = self.get_colorbar_ticks(min_z, max_z)
+                        num_colors = len(blevels)-1
+                        from matplotlib.colors import BoundaryNorm
+                        
+                        cmap2 = self.custom_div_cmap(num_colors, mincol='DarkBlue', midcol='CornflowerBlue', maxcol='w')
+                        cmap2.set_over('0.7') # light gray
+                        
+                        bnorm = BoundaryNorm(blevels, ncolors = num_colors, clip = False)
+                    
                         #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.cm.hot)
                         #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'), vmin=0.475, vmax=0.8)
                         #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('RdYlGn_r'))
                         #rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'), vmin = min_residual, vmax = max_residual)
-                        rmse_pl = plt.pcolor(xi, yi, zi, cmap=plt.get_cmap('cool'))
+                        #rmse_pl = plt.contourf(xi, yi, zi, cmap=plt.get_cmap('cool'), vmin = min_z, vmax = max_z, levels = blevels, norm = bnorm, extend = 'both')
+                        rmse_pl = plt.contourf(xi, yi, zi, cmap=cmap2, vmin = min_z, vmax = max_z, levels = blevels, norm = bnorm, extend = 'both')
                         #rmse_pl = plt.contourf(xi,yi,zi,15,cmap=plt.get_cmap('paired'))
                         #rmse_pl.cmap.set_over('black')
                         #rmse_pl.cmap.set_under('grey')
-                        ticks = self.get_colorbar_ticks(min_z, max_z)
-                        cb = plt.colorbar(rmse_pl, ticks = ticks, spacing='proportional')
+                        
+                        cb = plt.colorbar(rmse_pl, ticks = blevels, spacing='uniform')
     
                         cb.set_label(ttl + ' residual', fontsize=8)
                         cb.ax.tick_params(labelsize=8)    
-                        #plt.scatter(x, y, 10, z, cmap=plt.get_cmap('cool'))
+                        #plt.scatter(x, y, 10, z, cmap=cmap2,  vmin = min_z, vmax = max_z, norm = bnorm)
                         
                         level1_opt_neighs_label = False
                         level2_opt_neighs_label = False
@@ -336,7 +346,7 @@ class PlotUtils():
                                 else:
                                     label = None
                                 
-                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
+                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
                                 
                                 
                             elif fit_val < opt_fit[err_surface_type]['value'] + 2*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
@@ -347,7 +357,7 @@ class PlotUtils():
                                 else:
                                     label = None
     
-                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
+                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
                                 
                                 
                             elif fit_val < opt_fit[err_surface_type]['value'] + 3*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
@@ -358,7 +368,7 @@ class PlotUtils():
                                 else:
                                     label = None                            
                                 
-                                plt.scatter(x[k], y[k], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
+                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
                         
                         
                         #plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'white', backgroundcolor = scalarMap.to_rgba(scale_int[itn_levels_2_sbplts[itn_level]]))
@@ -575,10 +585,10 @@ class PlotUtils():
     
         for blevel in blevels:
             tick = min_z + blevel*min_z
-            if tick < max_z:
-                ticks.append(tick)
-            else: 
-                break
+            #if tick < max_z:
+            ticks.append(tick)
+            #else: 
+            #    break
                 
         return ticks
             
@@ -591,7 +601,13 @@ class PlotUtils():
             blevels.append(next)
             return self.generate_blevel_sequence(blevels, next, current, index + 1)
         
+    
+    def custom_div_cmap(self, numcolors=11, name='custom_div_cmap', mincol='blue', midcol='white', maxcol='red'):
         
+        from matplotlib.colors import LinearSegmentedColormap 
+        
+        cmap = LinearSegmentedColormap.from_list(name=name, colors =[mincol, midcol, maxcol], N=numcolors)
+        return cmap
         
         
         

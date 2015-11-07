@@ -106,19 +106,22 @@ for i,clinic in enumerate(clinics):
     cases_per_period = 0.0
     periods = 0    
     all_nans = True
+    num_weekly_reports = 0 # somewhat redundant with all_nans, but will live with it for now
     for i, (date, cases) in enumerate(tt_yy_full):
         
         if not cases == 'nan':
             cases_per_period = cases_per_period + cases
+            num_weekly_reports = num_weekly_reports + 1
             all_nans = False
-            
+        
         if (i+1) % (6*7) == 0 or (i+1) == len(tt_yy_full):
             if all_nans:
                 ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),'nan')
             else:
-                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period)
+                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period/(num_weekly_reports + 0.0)) # average by the number of present weeks per bin
             
             cases_per_period = 0.0
+            num_weekly_reports = 0
             periods = periods + 1
             all_nans = True
     

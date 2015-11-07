@@ -58,12 +58,19 @@ def calibrate(category, sweep_dir):
         json.dump(best_fits, best_fits_f, indent = 4)
         
         
-    # go through all fit models, extract params for each
+    # go through all fit models, extract params and individual fit function terms for each
     fit_entries = {}
     for cluster_id, models in all_fits['models'].iteritems():
         fit_entries[cluster_id] = {}
         for model in models:
             fit_entries[cluster_id].update(model.fit_entry())
+        
+        # making sure we record optimal values from previous computation back in fit_terms 
+        if 'min_terms' in fit_terms[cluster_id]:
+            fit_entries[cluster_id]['min_terms'] = fit_terms[cluster_id]['min_terms']
+        
+        if 'max_terms' in fit_terms[cluster_id]:
+            fit_entries[cluster_id]['max_terms'] = fit_terms[cluster_id]['max_terms'] 
     
     
     all_fits_f_path = os.path.join(sweep_dir, all_fits_file)
