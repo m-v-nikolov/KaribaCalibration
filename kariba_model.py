@@ -66,7 +66,6 @@ class KaribaModel:
                 self.set_clinical_cases_penalty_by_ls_no_norm(self.sim_data['cc'], self.cluster_id)
             if 'corr' in cc_penalty_model:
                 self.set_clinical_cases_penalty_by_corr(self.sim_data['cc'], self.cluster_id)
-                 
         else:
             if self.all_fits:
                 max_term = 0
@@ -286,6 +285,7 @@ class KaribaModel:
         rho, p = spearmanr(ccs_ref_agg, ccs_model_agg)
         
         self.clinical_cases_penalty = 1 - rho
+        self.clinical_cases_penalty_term = 1 - rho
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
         self.clinical_cases_penalty_weight = cc_weight
@@ -326,6 +326,7 @@ class KaribaModel:
         #debug_p('clinical cases sum of square errors ' + str(rmse))
         
         self.clinical_cases_penalty = rmse
+        self.clinical_cases_penalty_term = rmse
         self.clinical_cases_penalty_weight = cc_weight
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
@@ -347,6 +348,7 @@ class KaribaModel:
         #debug_p('clinical cases sum of square errors ' + str(rmse))
         
         self.clinical_cases_penalty = rmse
+        self.clinical_cases_penalty_term = rmse
         #debug_p('clinical cases penalty ' + str(self.clinical_cases_penalty))
         
         self.clinical_cases_penalty_weight = 100
@@ -427,7 +429,10 @@ class KaribaModel:
             
         fit_terms['reinf_penalty'] = self.reinfection_penalty_term
         
-        fit_terms['mse'] = self.get_cached_mse_term()
+        if load_prevalence_mse:
+            fit_terms['mse'] = self.get_cached_mse_term()
+        else:
+            fit_terms['mse'] = self.get_mse()
             
         fit_entry = {}
         fit_entry[model_meta['sim_key']] = {

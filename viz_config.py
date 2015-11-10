@@ -3,7 +3,7 @@ import os
 import shutil as sh
 
 from utils import warn_p, debug_p, verbose_p, json_list_update
-
+from kariba_utils import gazetteer_list_update
 from kariba_settings import ref_data_dir, cc_weight, reinf_weight, sim_data_dir, kariba_viz_dir, d3js_src_dir, d3js_src_files, gazetteer_params_file_name, gazetteer_params_header_file_name, gazetteer_base_map_file_name, gazetteer_sim_mn_base_map_file_name, tags_report_data_file,\
     cc_penalty_model, load_cc_penalty, load_prevalence_mse, load_reinf_penalty
 
@@ -39,39 +39,33 @@ class VizConfig():
         penalty_model = cc_penalty_model[0:x]
         model_weight = cc_penalty_model[x+1:]
         
-        # if penalties and mse have been pre-cached and are only loaded then assume model re-weighting 
-        # find the corresponding existing model and adjust entry, adding reweighting
-        if load_cc_penalty and load_prevalence_mse:
-            with open(gazetteer_file_path, 'r') as g_f:
-                gazetteer_entries = json.load(g_f)
-                
-                # if preloading penalty model was successful, than assume the corresponding penalty model is already in gazetteer
-                # (add exception throw in the future if penalty model is not in gazetteer
-                for entry in gazetteer_entries:
-                    debug_p(entry['model'])
-                    debug_p(penalty_model)
-                    if entry['model'] == penalty_model:
-                        entry['select'].append({'name':model_weight, 'value':self.sweep_name})
-                        break
-                
-                # save updated gazetteer entries
-                with open(gazetteer_file_path, 'w') as g_f:
-                    json.dump(gazetteer_entries, g_f, indent = 4)
-                    
-        # otherwise, create a new model entry 
-        else:
+        with open(gazetteer_file_path, 'r') as g_f:
+            gazetteer_entries = json.load(g_f)
+            
+        # check if penalty model is already in gazetteer
+        found = False
+        for entry in gazetteer_entries:
+            #debug_p(entry['model'])
+            #debug_p(penalty_model)
+            if entry['model'] == penalty_model:
+                entry['select'].append({'name':model_weight, 'value':self.sweep_name})
+                found = True
+                break
+        
+        if not found:
+            # if not found create a new model entry unless we are simply re-computing the values for already existing model entry
             gazetteer_nav_entry = {}
             gazetteer_nav_entry['model'] = penalty_model 
             gazetteer_nav_entry['params'] = self.get_model_params_gazetteer(tags_data, penalty_model)
             gazetteer_nav_entry['select'] = [{'name':'', 'value':'unselect'}]
-            gazetteer_nav_entry['select'].append({'name':model_weight, 'value':self.sweep_name}) 
+            gazetteer_nav_entry['select'].append({'name':model_weight, 'value':self.sweep_name})
+            json_list_update(gazetteer_nav_entry, gazetteer_file_path)
             
+        else:
+            # if found save updated gazetteer entries
             if os.path.exists(gazetteer_file_path):
-                json_list_update(gazetteer_nav_entry, gazetteer_file_path)
-            else:
                 with open(gazetteer_file_path, 'w') as g_f:
-                    json.dump([gazetteer_nav_entry], g_f, indent = 4)
-        
+                    json.dump(gazetteer_entries, g_f, indent = 4)
 
 
     def get_model_params_gazetteer(self, tags_data, penalty_model):

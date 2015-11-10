@@ -75,7 +75,7 @@ class PlotUtils():
         count = 0
         for cluster_id, cluster_record in self.best_fits.iteritems():
             
-            debug_p('Plotting clinical cases trace for cluster ' + cluster_id + ' in category ' + self.category)
+            debug_p('Plotting prevalence trace for cluster ' + cluster_id + ' in category ' + self.category)
         
             #fig = plt.figure(cluster, figsize=(11, 4), dpi=100, facecolor='white')
             fig = plt.figure(cluster_id, figsize=(9.2, 4), dpi=100, facecolor='white')
@@ -89,9 +89,7 @@ class PlotUtils():
             scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=pal)
                          
             ax = plt.subplot(gs[0:2])
-            
-    
-            ax.set_ylim(0,1)
+
             ax.set_xlim(2150,3010)    
             
             opt_sim_key = cluster_record['sim_key']
@@ -117,9 +115,13 @@ class PlotUtils():
             
             label_obs_prev_shown = False
             label_sim_prev_shown = False
+            max_obs_prev = 0.0
             for i,prev in enumerate(obs_prevs):
                 
                 if prev != 'nan':
+                    if max_obs_prev < prev:
+                        max_obs_prev = prev
+                        
                     if not label_obs_prev_shown:
                         label_obs_prev = 'Observed prevalence'
                         label_obs_prev_shown = True
@@ -139,6 +141,9 @@ class PlotUtils():
             count_traces = 0 
             for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
 
+                if sim_key == 'min_terms' or sim_key == 'max_terms':
+                    continue
+                
                 group_key = fit_entry['group_key']
                 fit_val = fit_entry['fit_val']
             
@@ -161,7 +166,9 @@ class PlotUtils():
                 
                 count_traces = count_traces + 1 
             
-                        
+            
+            
+            ax.set_ylim(0,min(max(max_obs_prev, max(opt_prev_trace))+0.1,1))            
             plt.xlabel('Time (days)', fontsize=8)
             plt.ylabel('Prevalence (population fraction)', fontsize=8)
             plt.legend(loc=1, fontsize=8)
@@ -222,6 +229,9 @@ class PlotUtils():
             opt_neigh_fits = []
             
             for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
+        
+                if sim_key == 'min_terms' or sim_key == 'max_terms':
+                    continue
         
                 x_temp_h = fit_entry['x_temp_h']
                 const_h = fit_entry['const_h']
@@ -490,6 +500,9 @@ class PlotUtils():
             count_traces = 0 
             for sim_key, fit_entry in self.all_fits[cluster_id].iteritems():
                 
+                if sim_key == 'min_terms' or sim_key == 'max_terms':
+                    continue
+                
                 group_key = fit_entry['group_key']
                 fit_val = fit_entry['fit_val']
             
@@ -585,8 +598,8 @@ class PlotUtils():
     
         for blevel in blevels:
             tick = min_z + blevel*min_z
-            #if tick < max_z:
-            ticks.append(tick)
+            if tick <= max_z:
+                ticks.append(tick)
             #else: 
             #    break
                 
@@ -594,7 +607,7 @@ class PlotUtils():
             
         
     def generate_blevel_sequence(self, blevels, current, previous, index):
-        if index == 10:
+        if index == 13:
             return current
         else:
             next = current + previous
@@ -602,12 +615,9 @@ class PlotUtils():
             return self.generate_blevel_sequence(blevels, next, current, index + 1)
         
     
-    def custom_div_cmap(self, numcolors=11, name='custom_div_cmap', mincol='blue', midcol='white', maxcol='red'):
+    def custom_div_cmap(self, numcolors=13, name='custom_div_cmap', mincol='blue', midcol='white', maxcol='red'):
         
         from matplotlib.colors import LinearSegmentedColormap 
         
         cmap = LinearSegmentedColormap.from_list(name=name, colors =[mincol, midcol, maxcol], N=numcolors)
         return cmap
-        
-        
-        

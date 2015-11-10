@@ -37,12 +37,12 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 2
-#cc_weight = 1000
+cc_weight = 1000
+#cc_weight = 100001
 reinf_weight = 0
 
 #cc_penalty_model = 'trunc_ls_norm'
-cc_penalty_model = 'corr_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
+cc_penalty_model = 'ls_folded_norm_pop_cc_2011_2013_cc_w_' + str(cc_weight)
 
 cc_agg_period = 6 # weeks
 cc_agg_fold = True
@@ -85,10 +85,12 @@ all_fits_file =  cc_penalty_model + '_all_fits.json'
 
 
 # fit terms settings
-load_cc_penalty = False
-load_prevalence_mse = False
+load_cc_penalty = True
+load_prevalence_mse = True
 load_reinf_penalty = False
-scale_fit_terms = True
+
+scale_fit_terms = False # scale individual fit function components to 0-1 range
+load_scaled_fit_terms = False # recompute min/max values for individual fit function components for 0-1 scaling; set to True if those have already been computed ('min_terms/max_terms' are present in fit_terms.json for each cluster)
 
 #use_scaled_fit_terms = False
 

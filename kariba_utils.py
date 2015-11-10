@@ -404,6 +404,23 @@ def roll_term(fit_term, path, extremal_term):
 
     return fit_term
 
+def gazetteer_list_update(data, file_path):
+    
+    with open(file_path, 'r') as f_p:
+        cur_data = json.load(f_p)
+    
+    found = False
+    for entry in cur_data:
+        if entry['model'] == data['model']:
+            entry['select'].append(data['select'][1]) # append only the new model selection (skipping the initial empty selection)
+            found = True 
+            break
+        
+    if not found: # if model is not already in the list append new model
+        cur_data.append(data)
+    
+    with open(file_path, 'w') as f_p:
+        json.dump(cur_data, f_p, indent = 4)
           
 def error_loading_fit_terms():
     

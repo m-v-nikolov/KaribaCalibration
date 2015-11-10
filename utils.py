@@ -40,7 +40,7 @@ def json_list_update(data, file_path):
     
     with open(file_path, 'r') as f_p:
         cur_data = json.load(f_p)
-        
+    
     cur_data.append(data)
     
     with open(file_path, 'w') as f_p:

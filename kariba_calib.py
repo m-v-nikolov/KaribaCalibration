@@ -6,7 +6,7 @@ import gc
 from comps_2_sim_data import get_sweep_results, combine_sweep_results
 from sim_data_2_models import calib_data_2_models_list
 
-from kariba_settings import  load_cc_penalty, load_prevalence_mse, load_reinf_penalty, sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, residuals_file, fit_terms_file, cc_penalty_model, scale_fit_terms
+from kariba_settings import  load_cc_penalty, load_prevalence_mse, load_reinf_penalty, sim_data_dir, calibration_data_file, tags_data_file, objectives_channel_codes, reports_channels, channels, best_fits_file, all_fits_file, residuals_file, fit_terms_file, cc_penalty_model, scale_fit_terms, load_scaled_fit_terms
 from kariba_utils import load_fit_terms, normalize_fit_terms
 from kariba_fit import KaribaFit
 
@@ -39,7 +39,7 @@ def calibrate(category, sweep_dir):
         
     fit_terms_file_path = os.path.join(sweep_dir, fit_terms_file)
     
-    if scale_fit_terms:
+    if scale_fit_terms and not load_scaled_fit_terms:
         fit_terms = normalize_fit_terms(fit_terms_file_path)
     else:
         fit_terms = load_fit_terms(fit_terms_file_path)

@@ -89,7 +89,7 @@ class KaribaFit:
             # adjust highest possible fit to account for RDT+ model in dtk not reflecting reality at the upper end
             obj_prev = ref.get_obj_by_name('prevalence')
             d_points = obj_prev.get_points()
-            obj_prev.set_points([max(point, rdt_max) for point in d_points])
+            obj_prev.set_points([min(point, rdt_max) for point in d_points])
             
             
             fitting_set = FittingSet(cluster_id, cluster_models, ref)
