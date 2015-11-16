@@ -50,7 +50,7 @@ if __name__ == '__main__':
         
         #create respective figure dirs if not existing;         
         
-        
+        '''
         # create clinical cases plots directory if it doesn't exist
         cc_plots_dir = os.path.join(viz_root_sweep_dir, cc_traces_plots_dir)
         if not os.path.exists(cc_plots_dir):
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         pp.plot_calib_cc_traces_clusters()
         
         print "Plotting clinical cases done for category " + category
-        
+        '''
         
         # create err surfaces plots directory if it doesn't exist
         err_plots_dir = os.path.join(viz_root_sweep_dir, err_surfaces_plots_dir)

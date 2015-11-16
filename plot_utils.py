@@ -4,10 +4,13 @@ import sys
 import numpy as np
 import pandas as pd
 import math
+import json
 
 from scipy import interpolate
 from scipy.interpolate import Rbf
 from scipy.interpolate import interp2d
+from scipy.interpolate import spline
+from scipy.stats import scoreatpercentile as satp
 
 from datetime import datetime,timedelta
 
@@ -27,8 +30,8 @@ from utils import warn_p, debug_p
 from surv_data_2_ref import surv_data_2_ref as d2f
 
 from kariba_settings import opt_marker, opt_marker_size, markers, subopt_plots_threshold, cc_penalty_model, cc_agg_fold, hfca_id_2_facility, cluster_2_prevs as c2p, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, sim_data_dir, calibration_data_file, tags_data_file, channels_sample_points, objectives_channel_codes, reports_channels, channels, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, cc_penalty_model,\
-    cc_weight
-from kariba_utils import get_cc_model_ref_traces, get_cc_penalty
+    cc_weight, hfca_id_2_cluster_ids, sample_size, cc_num_fold_bins, weighted_cc_traces_base_file_name, weighted_cc_traces_plots_dir, sample_size_percentile, weighted_ccs_by_hfca_id_file, get_cluster_category
+from kariba_utils import get_cc_model_ref_traces, get_cc_penalty, sim_key_2_group_key
 
 class PlotUtils():
     
@@ -92,6 +95,29 @@ class PlotUtils():
 
             ax.set_xlim(2150,3010)    
             
+            ref = self.get_ref(cluster_id)
+            
+            if not ref:
+                # no reference object could be constructed; no data found; return w/o plotting
+                return
+            
+            
+            with open(os.path.join(sim_data_dir,weighted_ccs_by_hfca_id_file), 'r') as wccs_f:
+                cluster_ccs_samples = json.load(wccs_f)
+            
+            hfca_id = cluster_id.split('_')[0]
+            
+            count_labels = 0
+            for (group_key, sim_key, ccs) in cluster_ccs_samples[hfca_id][cluster_id]['unweighted']:
+                 prev_trace = self.calib_data[group_key][sim_key]['prevalence']
+                 if count_labels == 0:
+                     ax.plot(range(2150, 3000), prev_trace[2149:2999], alpha=0.35, linewidth=0.5, color = 'magenta', label = 'Opt 5-percentile samples for cluster ' + cluster_id)
+                     count_labels += 1
+                 else:
+                    ax.plot(range(2150, 3000), prev_trace[2149:2999], alpha=0.35, linewidth=0.5, color = 'magenta', marker = None)
+
+
+
             opt_sim_key = cluster_record['sim_key']
             opt_group_key = cluster_record['group_key']
             
@@ -103,19 +129,43 @@ class PlotUtils():
             
             opt_prev_trace = self.calib_data[opt_group_key][opt_sim_key]['prevalence']
             
-            ax.plot(range(2150, 3000), opt_prev_trace[2149:2999], alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn))
+            ax.plot(range(2150, 3000), opt_prev_trace[2149:2999], alpha=1, linewidth=2.0, c = 'black', label = 'Best fit: prevalence + clinical cases: eff. constant=' + str(opt_const_h*opt_x_temp_h) + ', all='+str(opt_x_temp_h) + ', drug cov.' + str(opt_drug) + ', ITN dist. = '+str(opt_itn))
             
-            ref = self.get_ref(cluster_id)
             
-            if not ref:
-                # no reference object could be constructed; no data found; return w/o plotting
-                return
+            sim_key = cluster_record['mse']['sim_key']
+            # avoid doing that and add group_key to corresponding terms in best_fits
+            group_key = sim_key_2_group_key(sim_key)
+
+            const_h = cluster_record['mse']['const_h']
+            x_temp_h = cluster_record['mse']['temp_h']
+            itn = cluster_record['mse']['ITN_cov']
+            drug = cluster_record['mse']['MSAT_cov']
+            
+            prev_trace_by_prev = self.calib_data[group_key][sim_key]['prevalence']
+            
+            ax.plot(range(2150, 3000), prev_trace_by_prev[2149:2999], alpha=1, linewidth=2.0, c = 'magenta', label = 'Best fit: prevalence: eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h) + ', drug cov.' + str(drug) + ', ITN dist. = '+str(itn))
+            
+            
+            sim_key = cluster_record['cc_penalty']['sim_key']
+            group_key = sim_key_2_group_key(sim_key)
+            
+            const_h = cluster_record['cc_penalty']['const_h']
+            x_temp_h = cluster_record['cc_penalty']['temp_h']
+            itn = cluster_record['cc_penalty']['ITN_cov']
+            drug = cluster_record['cc_penalty']['MSAT_cov']
+            
+            prev_trace_by_cc = self.calib_data[group_key][sim_key]['prevalence']
+            
+            ax.plot(range(2150, 3000), prev_trace_by_cc[2149:2999], alpha=1, linewidth=2.0, c = 'blue', label = 'Best fit: clinical cases: eff. constant=' + str(const_h*x_temp_h) + ', all='+str(x_temp_h) + ', drug cov.' + str(drug) + ', ITN dist. = '+str(itn))
+
             
             obs_prevs = ref.to_dict()['prevalence']['d_points']
             
             label_obs_prev_shown = False
             label_sim_prev_shown = False
             max_obs_prev = 0.0
+
+
             for i,prev in enumerate(obs_prevs):
                 
                 if prev != 'nan':
@@ -128,7 +178,7 @@ class PlotUtils():
                     else: 
                         label_obs_prev = None
                          
-                    ax.scatter(channels_sample_points['prevalence'][i], prev, c = 'red', facecolor = 'red', marker='o', s = 40, label = label_obs_prev)
+                    ax.scatter(channels_sample_points['prevalence'][i], prev, c = 'red', facecolor = 'red', marker='o', s = 40, label = label_obs_prev, zorder=200)
                     
                 if not label_sim_prev_shown:
                     label_sim_prev = 'Best fit simulated prevalence at rnds.'
@@ -136,8 +186,10 @@ class PlotUtils():
                 else: 
                     label_sim_prev = None
                 
-                ax.scatter(channels_sample_points['prevalence'][i], opt_prev_trace[channels_sample_points['prevalence'][i]], c = 'black', facecolor = 'none', marker='o', s = 60, label = label_sim_prev)
-
+                ax.scatter(channels_sample_points['prevalence'][i], opt_prev_trace[channels_sample_points['prevalence'][i]], c = 'black', facecolor = 'none', marker='o', s = 60, label = label_sim_prev, zorder=150)
+                
+                
+            '''
             count_traces = 0 
             for sim_key,fit_entry in self.all_fits[cluster_id].iteritems():
 
@@ -150,9 +202,10 @@ class PlotUtils():
                 const_h = fit_entry['const_h']  
                 x_temp_h = fit_entry['x_temp_h']
             
-                if sim_key == opt_sim_key or fit_val > opt_fit_value + opt_fit_value*subopt_plots_threshold or count_traces > 10: 
-                # do not plot optimal traces since we've already plotted it ;also do not plot too suboptimal traces
-                    continue
+                #if sim_key == opt_sim_key or fit_val > opt_fit_value + opt_fit_value*subopt_plots_threshold or count_traces > 10:
+                #if fit_entry['fit_terms']['mse'] <= satp(z, sample_size_percentile):
+                #do not plot optimal traces since we've already plotted it ;also do not plot too many suboptimal traces
+                #    continue
                 
                 prev_trace = self.calib_data[group_key][sim_key]['prevalence']
                 marker = self.get_marker(sim_key, count_traces)
@@ -165,7 +218,7 @@ class PlotUtils():
                     ax.scatter(channels_sample_points['prevalence'][i], prev_trace[channels_sample_points['prevalence'][i]], marker = marker, c = 'black', facecolor = 'none', s = 30)
                 
                 count_traces = count_traces + 1 
-            
+            '''
             
             
             ax.set_ylim(0,min(max(max_obs_prev, max(opt_prev_trace))+0.1,1))            
@@ -313,11 +366,11 @@ class PlotUtils():
                         #rbf = Rbf(x, y, z, epsilon=2)
                         #zig = rbf(xig, yig)
                     
-                        blevels = self.get_colorbar_ticks(min_z, max_z)
+                        blevels = self.get_colorbar_ticks(min_z, max_z, z)
                         num_colors = len(blevels)-1
                         from matplotlib.colors import BoundaryNorm
                         
-                        cmap2 = self.custom_div_cmap(num_colors, mincol='DarkBlue', midcol='CornflowerBlue', maxcol='w')
+                        cmap2 = self.custom_cmap(num_colors, mincol='DarkBlue', midcol='CornflowerBlue', maxcol='w')
                         cmap2.set_over('0.7') # light gray
                         
                         bnorm = BoundaryNorm(blevels, ncolors = num_colors, clip = False)
@@ -332,6 +385,25 @@ class PlotUtils():
                         #rmse_pl.cmap.set_over('black')
                         #rmse_pl.cmap.set_under('grey')
                         
+                        max_blevel_in_sample = 0
+                        for blevel in blevels:
+                            if blevel <= satp(z, sample_size_percentile) and blevel > max_blevel_in_sample:
+                               max_blevel_in_sample = blevel 
+                                
+                        pc = plt.contour(xi,yi,zi, levels=[max_blevel_in_sample], colors='r', linewidth=0, alpha=0.5)
+                        
+                        b_per_s = pc.collections[0].get_paths()
+                        count_labels = 0
+                        for per in range(len(b_per_s)):
+                            b_per_s_x = b_per_s[per].vertices[:,0]
+                            b_per_s_y = b_per_s[per].vertices[:,1]
+                            if count_labels == 0:
+                                plt.fill(b_per_s_x,b_per_s_y, 'magenta', linestyle='solid', alpha=0.3, label = 'Opt 5-percentile: ' + err_surface_style['title'])
+                                count_labels = count_labels + 1
+                            else:
+                                plt.fill(b_per_s_x,b_per_s_y, 'magenta', linestyle='solid', alpha=0.3)
+                            
+                        
                         cb = plt.colorbar(rmse_pl, ticks = blevels, spacing='uniform')
     
                         cb.set_label(ttl + ' residual', fontsize=8)
@@ -344,43 +416,44 @@ class PlotUtils():
                         # plot all optimal markers on each surface
                 
                         for (opt_err_surface_type, opt_err_surface_style) in err_surface_types.iteritems():
-                            plt.scatter(opt_fit[opt_err_surface_type]['temp_h'], opt_fit[opt_err_surface_type]['const_h'], c = 'red', marker = opt_err_surface_style['marker'], s = 60, facecolor='none', edgecolor='red', zorder=100, label= opt_err_surface_style['title'] + ' best fit')
+                            plt.scatter(opt_fit[opt_err_surface_type]['temp_h'], opt_fit[opt_err_surface_type]['const_h'], c = 'red', marker = opt_err_surface_style['marker'], s = 60, facecolor='none', edgecolor='black', zorder=100, label= opt_err_surface_style['title'] + ' best fit')
                         
+                        '''
                         for k,fit_val in enumerate(z):
+
+                                if fit_val < opt_fit[err_surface_type]['value'] + opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                    
+                                    if not level1_opt_neighs_label:
+                                        label = '< opt + 0.1opt'
+                                        level1_opt_neighs_label = True
+                                    else:
+                                        label = None
+                                    
+                                    #plt.scatter(x[k], y[k], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
+                                    
+                                    
+                                elif fit_val < opt_fit[err_surface_type]['value'] + 2*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                    
+                                    if not level2_opt_neighs_label:
+                                        label = '< opt + 0.2opt'
+                                        level2_opt_neighs_label = True
+                                    else:
+                                        label = None
+        
+                                    #plt.scatter(x[k], y[k], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
+                                    
+                                    
+                                elif fit_val < opt_fit[err_surface_type]['value'] + 3*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
+                                    
+                                    if not level3_opt_neighs_label:
+                                        label = '< opt + 0.3opt'
+                                        level3_opt_neighs_label = True
+                                    else:
+                                        label = None                            
+                                    
+                                    #plt.scatter(x[k], y[k], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
+                        '''
                             
-                            if fit_val < opt_fit[err_surface_type]['value'] + opt_fit[err_surface_type]['value']*subopt_plots_threshold:
-                                
-                                if not level1_opt_neighs_label:
-                                    label = '< opt + 0.1opt'
-                                    level1_opt_neighs_label = True
-                                else:
-                                    label = None
-                                
-                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'd',  linewidth = 0.75, color = 'green', label = label)
-                                
-                                
-                            elif fit_val < opt_fit[err_surface_type]['value'] + 2*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
-                                
-                                if not level2_opt_neighs_label:
-                                    label = '< opt + 0.2opt'
-                                    level2_opt_neighs_label = True
-                                else:
-                                    label = None
-    
-                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'o', linewidth = 0.75, color = 'blue', label = label)
-                                
-                                
-                            elif fit_val < opt_fit[err_surface_type]['value'] + 3*opt_fit[err_surface_type]['value']*subopt_plots_threshold:
-                                
-                                if not level3_opt_neighs_label:
-                                    label = '< opt + 0.3opt'
-                                    level3_opt_neighs_label = True
-                                else:
-                                    label = None                            
-                                
-                                #plt.scatter(x[k], y[k], 10, fit_val, marker = 'x',  linewidth = 0.75, color = 'red',  label = label)
-                        
-                        
                         #plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'white', backgroundcolor = scalarMap.to_rgba(scale_int[itn_levels_2_sbplts[itn_level]]))
                         plt.title(ttl, fontsize = 8, fontweight = 'bold', color = 'black')
                         plt.xlabel('All habitats scale', fontsize=8)
@@ -573,7 +646,112 @@ class PlotUtils():
             plt.savefig(output_plot_file_path, dpi = 300, format='png')
             plt.close()
             
+    
+    def plot_weighted_cc_per_hfca(self, weighted_ccs_model_agg_by_hfca, ccs_model_agg_by_hfca_cluster_id):
+        
+        
+        clusters_processed = 0
+        for hfca_id, weighted_ccs_combos in weighted_ccs_model_agg_by_hfca.iteritems():
+        
+            weighted_ccs_by_bin = {}
+            for i in range(0, cc_num_fold_bins):
+                weighted_ccs_by_bin[i] = []
+                
             
+            for weighted_ccs_combo in weighted_ccs_combos:
+                sum_weighted_ccs = cc_num_fold_bins * [0]
+
+                for weighted_ccs in weighted_ccs_combo:
+                    sum_weighted_ccs = np.add(sum_weighted_ccs, weighted_ccs)
+                    
+                for i in range(0, cc_num_fold_bins):
+                    weighted_ccs_by_bin[i].append(sum_weighted_ccs[i])
+        
+        
+            per_bottom = []
+            per_top = []
+            per_median = []
+            
+            for i in range(0, cc_num_fold_bins):
+                weighted_ccs_by_bin_idx = weighted_ccs_by_bin[i]
+                per_bottom.append( satp(weighted_ccs_by_bin_idx, 2.5) )
+                per_top.append( satp(weighted_ccs_by_bin_idx, 97.5) )
+                per_median.append( satp(weighted_ccs_by_bin_idx, 50) )
+                
+            '''
+            debug_p('length of weighted ccs_combos array ' + str(len(weighted_ccs_combos)))
+            '''
+            debug_p('length of bin 0 in weighted_ccs_by_bin ' + str(len(weighted_ccs_by_bin[0])))
+           
+            
+            for cluster_id in hfca_id_2_cluster_ids(hfca_id):
+                
+                fig = plt.figure(cluster_id, figsize=(9.2, 4), dpi=100, facecolor='white')
+                gs = gridspec.GridSpec(1, 4)
+                     
+                ax = plt.subplot(gs[0:4])
+
+                x_smooth = np.linspace(0, cc_num_fold_bins-1,60)
+                
+                per_bottom_smooth = spline(range(0, cc_num_fold_bins),per_bottom,x_smooth)
+                per_top_smooth = spline(range(0, cc_num_fold_bins),per_top,x_smooth)
+                per_median_smooth = spline(range(0, cc_num_fold_bins),per_median,x_smooth)
+                
+                ax.plot(x_smooth, per_bottom_smooth, alpha=1, linewidth=0.5, color = 'black', linestyle=':', label = '2.5 percentile HS weighted: prevalence space samples', marker = None)
+                ax.plot(x_smooth, per_top_smooth, alpha=1, linewidth=0.5, color = 'black', linestyle=':', label = '97.5 percentile HS weighted: prevalence space samples', marker = None)
+                ax.plot(x_smooth, per_median_smooth, alpha=1, linewidth=2.0, color = 'magenta', linestyle='-', label = 'median HS weighted: prevalence space samples', marker = None)
+                ax.fill_between(x_smooth, per_bottom_smooth, per_top_smooth, facecolor='gray', alpha=0.5, interpolate=True)
+                
+                cluster_cat = get_cluster_category(cluster_id)
+                
+                opt_group_key = self.best_fits[cluster_id]['group_key']
+                
+                opt_sim_key_cc = self.best_fits[cluster_id]['cc_penalty']['sim_key']
+                cc_trace_opt_cc = self.calib_data[cluster_cat][opt_group_key][opt_sim_key_cc]
+                
+                opt_sim_key_prev = self.best_fits[cluster_id]['mse']['sim_key']
+                cc_trace_opt_prev = self.calib_data[cluster_cat][opt_group_key][opt_sim_key_prev]
+                
+                opt_sim_key_fit = self.best_fits[cluster_id]['fit']['sim_key']
+                cc_trace_opt_fit = self.calib_data[cluster_cat][opt_group_key][opt_sim_key_fit]
+            
+                ccs_model_agg_cc, ccs_ref_agg = get_cc_model_ref_traces(cc_trace_opt_cc, cluster_id)
+                ccs_model_agg_prev, ccs_ref_agg = get_cc_model_ref_traces(cc_trace_opt_prev, cluster_id)
+                ccs_model_agg_fit, ccs_ref_agg = get_cc_model_ref_traces(cc_trace_opt_fit, cluster_id)
+                
+                facility = hfca_id_2_facility(hfca_id)
+                ax.plot(range(0, len(ccs_model_agg_cc)), ccs_model_agg_cc, alpha=1, linewidth=1, color = 'blue', label = 'Best fit: clinical cases', marker = 's')
+                ax.plot(range(0, len(ccs_model_agg_prev)), ccs_model_agg_prev, alpha=1, linewidth=1, color = 'magenta', label = 'Best fit: prevalence', marker = 'o')
+                ax.plot(range(0, len(ccs_model_agg_fit)), ccs_model_agg_fit, alpha=1, linewidth=1, color = 'black', label = 'Best fit: prevalence + clinical cases', marker = '*')
+                ax.plot(range(0, len(ccs_ref_agg)), ccs_ref_agg, alpha=1, linewidth=2.0, linestyle = '-', color = 'red', label = 'Observed in ' + facility, marker = None)    
+                
+                for i,sample_ccs in enumerate(ccs_model_agg_by_hfca_cluster_id[hfca_id][cluster_id]['unweighted']):
+                      
+                    if i == 0:
+                        ax.plot(range(0, cc_num_fold_bins), sample_ccs[2], alpha=0.5, linewidth=0.5, color = 'magenta', label = 'Opt 5-percentile samples for cluster ' + cluster_id, marker = None)
+                        #ax.plot(range(0, cc_num_fold_bins), sample_ccs[2])
+                    else:
+                        ax.plot(range(0, cc_num_fold_bins), sample_ccs[2], alpha=0.5, linewidth=0.5, color = 'magenta', marker = None)
+        
+                plt.xlabel('6-week bins', fontsize=8)
+                plt.ylabel('Clinical cases', fontsize=8)
+                legend = plt.legend(loc=1, fontsize=8)
+            
+                
+                plt.xlim(0,8)
+                plt.title('Clinical cases timeseries', fontsize = 8, fontweight = 'bold', color = 'black')
+                plt.gca().tick_params(axis='x', labelsize=8)
+                plt.gca().tick_params(axis='y', labelsize=8)
+                plt.tight_layout()
+                output_plot_file_path = os.path.join(self.root_sweep_dir, weighted_cc_traces_plots_dir, weighted_cc_traces_base_file_name + cluster_id + '.png')
+                plt.savefig(output_plot_file_path, dpi = 300, format='png')
+                plt.close()
+                
+                clusters_processed = clusters_processed + 1
+                
+                debug_p('Processed weighting and plotting clinical cases for ' + str(clusters_processed) + ' clusters') 
+            
+    
     def get_marker(self, sim_key, count_traces):
         
         if not sim_key in self.fit_entries_2_markers:
@@ -585,7 +763,7 @@ class PlotUtils():
         return marker
     
     
-    def get_colorbar_ticks(self, min_z, max_z):
+    def get_colorbar_ticks(self, min_z, max_z, z):
         
         blevels = []
         ticks = [min_z]
@@ -600,14 +778,19 @@ class PlotUtils():
             tick = min_z + blevel*min_z
             if tick <= max_z:
                 ticks.append(tick)
-            #else: 
-            #    break
+        
+        # not efficient; but there are many parts of this that aren't;
+        # need to refactor at some point if speed is an issue
+        # avoid premature optimization
+        
+        ticks.append(satp(z, sample_size_percentile))
+        
                 
-        return ticks
+        return sorted(ticks)
             
         
     def generate_blevel_sequence(self, blevels, current, previous, index):
-        if index == 13:
+        if index == 20:
             return current
         else:
             next = current + previous
@@ -615,9 +798,9 @@ class PlotUtils():
             return self.generate_blevel_sequence(blevels, next, current, index + 1)
         
     
-    def custom_div_cmap(self, numcolors=13, name='custom_div_cmap', mincol='blue', midcol='white', maxcol='red'):
+    def custom_cmap(self, numcolors=13, name='custom_cmap', mincol='blue', midcol='white', maxcol='black'):
         
         from matplotlib.colors import LinearSegmentedColormap 
-        
+
         cmap = LinearSegmentedColormap.from_list(name=name, colors =[mincol, midcol, maxcol], N=numcolors)
         return cmap

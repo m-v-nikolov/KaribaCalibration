@@ -118,7 +118,8 @@ for i,clinic in enumerate(clinics):
             if all_nans:
                 ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),'nan')
             else:
-                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period/(num_weekly_reports + 0.0)) # average by the number of present weeks per bin
+                #ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period/(num_weekly_reports + 0.0)) # average by the number of present weeks per bin
+                ccs_agg[str(clinic_2_hfca_id[clinic])][periods] = (str(date),cases_per_period) # not averaged with no imputation
             
             cases_per_period = 0.0
             num_weekly_reports = 0

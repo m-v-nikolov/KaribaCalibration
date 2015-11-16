@@ -3,10 +3,14 @@ import os
 import json
 import pandas as pd
 import numpy as np
+import random
+import itertools as it
+import math
+from scipy.stats import scoreatpercentile as satp
 
 from datetime import datetime,timedelta
 
-from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model, fit_terms_types
+from kariba_settings import hfca_2_pop, cc_correction_factor, get_fold_bins, cc_agg_fold, cc_agg_period, fold_start_date, fold_end_date, calib_node_pop, cluster_2_cc, cc_sim_start_date, cc_ref_start_date, cc_ref_end_date, tags_report_data_file, fit_terms_file, sim_data_dir, cc_penalty_model, fit_terms_types, hfca_id_2_cluster_ids, get_hfca_ids, get_cc_cluster_weight_factor, cluster_2_pops, sample_size_percentile, weighted_ccs_by_hfca_id_file, min_num_combos_per_hfca, load_prevalence_based_ccs, sample_size, cluster_2_mean_pop, get_cluster_category
 
 from utils import warn_p, debug_p, feature_scale
 from copy import deepcopy
@@ -31,6 +35,17 @@ def get_cc_penalty(fit_entry):
     debug_p('No clinical cases penalty found. This should not happen!')
     return None
         
+
+def sim_key_2_group_key(sim_key):
+    group_key_terms = sim_key.split('_')[2:]
+    group_key = ''
+    for i,gt in enumerate(group_key_terms):
+        if i < len(group_key_terms)-1:
+            group_key += gt + '_'
+        else:
+            group_key += gt
+    return group_key
+
 
 def get_sim_key(temp_h, const_h, itn_level, drug_level):
     return str(temp_h) + '_' + str(const_h) + '_' + get_sim_group_key(itn_level, drug_level)
@@ -106,7 +121,7 @@ def combine_tags_reports(base_dirs, output_dir):
     print "DONE" 
 
 
-def cc_data_aggregate(model_clinical_cases, cluster_id):
+def cc_data_aggregate(model_clinical_cases, cluster_id, cc_cluster_weight_factor = None):
     
     # aggregate on a periodic basis to as many values as there are in the ref data
     ccs_ref_agg = cluster_2_cc(cluster_id)                                        
@@ -117,7 +132,13 @@ def cc_data_aggregate(model_clinical_cases, cluster_id):
     
     hfca_pop = hfca_2_pop(hfca_id)
     
-    pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
+    pop_norm_factor = 0.0
+    
+    if not cc_cluster_weight_factor:
+        pop_norm_factor = cc_correction_factor*(hfca_pop + 0.0)/calib_node_pop
+    else:
+        pop_norm_factor = cc_cluster_weight_factor
+        
     #pop_norm_factor = 1
     #debug_p('pop of hfca ' + hfca_id + ' is ' + str(hfca_pop))
     #debug_p('pop norm factor for cluster ' + cluster_id + ' is ' + str(pop_norm_factor))
@@ -277,9 +298,9 @@ def cc_data_nan_clean(ccs_model_agg, ccs_ref_agg, cluster_id):
     return ccs_model_agg_clean, ccs_ref_agg_clean 
 
 
-def get_cc_model_ref_traces(model_clinical_cases, cluster_id):
+def get_cc_model_ref_traces(model_clinical_cases, cluster_id, cc_cluster_weight_factor = None):
     
-    ccs_model_agg, ccs_ref_agg, fold_bins = cc_data_aggregate(model_clinical_cases, cluster_id)
+    ccs_model_agg, ccs_ref_agg, fold_bins = cc_data_aggregate(model_clinical_cases, cluster_id, cc_cluster_weight_factor)
     
     if cc_agg_fold:
         ccs_model_agg, ccs_ref_agg = fold_nan_clean(fold_bins)
@@ -427,3 +448,141 @@ def error_loading_fit_terms():
     debug_p('Could not load fit terms! Check whether fit terms file at ' + os.path.join(sim_data_dir, fit_terms_file) + ' is accessible.')
     
     raise ValueError('Could not load fit terms! Check whether fit terms file at ' + os.path.join(sim_data_dir, fit_terms_file) + ' is accessible.')
+
+def get_prevalence_opt_region_sims(best_fits, all_fits, cluster_id):
+    
+    opt_region_sims = []
+    
+    cluster_record = best_fits[cluster_id]
+    
+    opt_group_key = cluster_record['group_key']
+
+    error_points = {}
+    for sim_key,fit_entry in all_fits[cluster_id].iteritems():
+
+        if sim_key == 'min_terms' or sim_key == 'max_terms':
+            continue
+
+        mse = fit_entry['fit_terms']['mse']
+        group_key = fit_entry['group_key']    
+        
+            
+        if group_key not in error_points:
+            error_points[group_key] = {
+                                           'mse':[],
+                                           'sim_key': []
+                                        }
+            
+        error_points[group_key]['mse'].append(mse)
+        error_points[group_key]['sim_key'].append(sim_key)
+               
+                
+    for j,group_key in enumerate(error_points.keys()):
+
+        if group_key == opt_group_key:     
+                z = error_points[group_key]['mse']
+                sim_keys = error_points[group_key]['sim_key']
+                sample_space = zip(sim_keys, z) 
+                
+                opt_region_sims  = [(group_key, sim_key) for (sim_key, res) in sample_space if res <= satp(z, sample_size_percentile)]
+                break
+                
+    return opt_region_sims
+
+     
+    
+def get_prevalence_based_cc(best_fits, all_fits, calib_data):
+    
+    weighted_ccs_by_hfca_id_file_path = os.path.join(sim_data_dir, weighted_ccs_by_hfca_id_file)
+    
+    hfca_ids = get_hfca_ids()
+    
+    debug_p('Getting clinical cases samples based on prevalence optimal regions')
+    
+    weighted_ccs_model_agg_by_hfca = {} 
+    for hfca_id in hfca_ids:
+        hfca_id = str(hfca_id)
+        weighted_ccs_model_agg_by_hfca[hfca_id] = {}
+        
+        cluster_ids = hfca_id_2_cluster_ids(hfca_id)
+        
+        for cluster_id in cluster_ids:
+            
+            cluster_cat = get_cluster_category(cluster_id)
+            
+            sims_opt_region = get_prevalence_opt_region_sims(best_fits, all_fits, cluster_id)
+            
+            # assume sample size is always less than the size of the population!
+            sample_sims_opt_region = random.sample(sims_opt_region, sample_size) 
+            
+            for i, (sample_group_key, sample_sim_key) in enumerate(sample_sims_opt_region): 
+                      
+                sample_cc_trace = calib_data[cluster_cat][sample_group_key][sample_sim_key]
+                cc_cluster_weight_factor = get_cc_cluster_weight_factor(cluster_id) # accounting for health seeking behavior data
+                cc_cluster_weight_factor = (cluster_2_mean_pop(cluster_id)/(calib_node_pop + 0.0)) * cc_cluster_weight_factor # accounting for real cluster population (mean across all rounds)
+                ccs_model_agg, ccs_ref_agg = get_cc_model_ref_traces(sample_cc_trace, cluster_id, cc_cluster_weight_factor)
+                ccs_model_agg_unweighted, ccs_ref_agg_unweighted = get_cc_model_ref_traces(sample_cc_trace, cluster_id)
+                
+                if not cluster_id in weighted_ccs_model_agg_by_hfca[hfca_id]:  
+                    weighted_ccs_model_agg_by_hfca[hfca_id][cluster_id] = {
+                                                                           'weighted':[],
+                                                                           'unweighted':[]
+                                                                           }
+                    
+                weighted_ccs_model_agg_by_hfca[hfca_id][cluster_id]['weighted'].append(ccs_model_agg)
+                weighted_ccs_model_agg_by_hfca[hfca_id][cluster_id]['unweighted'].append((sample_group_key,sample_sim_key,ccs_model_agg_unweighted))
+
+    with open(weighted_ccs_by_hfca_id_file_path, 'w') as w_ccs_f:
+        json.dump(weighted_ccs_model_agg_by_hfca, w_ccs_f, indent = 3)
+        
+    debug_p('DONE getting clinical cases samples based on prevalence optimal regions')
+    
+    debug_p('Saved clinical cases samples based on prevalence optimal regions to ' + weighted_ccs_by_hfca_id_file_path)
+    
+    return weighted_ccs_model_agg_by_hfca
+
+
+
+def weighted_ccs_combos(hfca_id, weighted_ccs_model_agg_by_hfca):
+    
+    debug_p('Generating clinical cases combos')
+    
+    samples_by_cluster = {}
+    
+    num_clusters = len(weighted_ccs_model_agg_by_hfca) # number of clusters in the given hfca
+    
+    '''
+    # determine number of sample clinical cases timeseries per cluster to satisfy the minimum number of combos (cartesian product cardinality) of clinical case time series per hfcas
+    
+    
+    satisfied = False
+    sample_size_ccs_per_cluster = 1
+    
+    while not satisfied:
+        if math.pow(num_clusters, sample_size_ccs_per_cluster) >= min_num_combos_per_hfca:
+            satisfied = True
+            break
+        sample_size_ccs_per_cluster = sample_size_ccs_per_cluster + 1
+        debug_p('sample size per cluster is ' + str(sample_size_ccs_per_cluster))
+    '''   
+    
+    # randomly sample clinical case time series per cluster
+    for cluster_id, ccs in weighted_ccs_model_agg_by_hfca.iteritems():
+        #sample_ccs = random.sample(ccs['weighted'], sample_size_ccs_per_cluster)        
+        sample_ccs = random.sample(ccs['weighted'], sample_size)
+        samples_by_cluster[cluster_id] = sample_ccs
+        
+    ccs_combos_hfca = []
+    
+    shuffled_ccs = samples_by_cluster.values() 
+    np.random.shuffle(shuffled_ccs)
+    
+    # find a set of cartesian products on the randomly sampled clinical cases time series across clusters 
+    for ccs_combo in it.product(*shuffled_ccs): # construct a cartesian product from the random samples of weighted clinical case traces within hfca_id
+        ccs_combos_hfca.append(ccs_combo)
+        if len(ccs_combos_hfca) >= min_num_combos_per_hfca:
+            break
+    
+    debug_p('DONE generating clinical cases combos')
+        
+    return ccs_combos_hfca, samples_by_cluster

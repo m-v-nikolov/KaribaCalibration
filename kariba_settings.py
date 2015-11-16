@@ -37,7 +37,7 @@ calib_node_pop= 1000
 
 num_procs = 2
 
-cc_weight = 1000
+cc_weight = 0.0051
 #cc_weight = 100001
 reinf_weight = 0
 
@@ -49,6 +49,8 @@ cc_agg_fold = True
 cc_num_fold_bins = int(math.ceil(365/(cc_agg_period*7 + 0.0)))  
 fold_start_date = pd.to_datetime('1/1/2011')
 fold_end_date = pd.to_datetime('2/9/2014')
+
+
 
 cc_correction_factor = 0.33
 
@@ -63,6 +65,10 @@ cc_traces_base_file_name = 'cc_trace_'
 
 err_surfaces_plots_dir = 'err_surfaces'
 err_surfaces_base_file_name = 'surf_'
+
+weighted_cc_traces_plots_dir = 'weighted_cc_traces'
+weighted_cc_traces_base_file_name = 'weighted_cc_trace_'
+
 
 
 cc_sim_start_date = datetime(2005,1,1)
@@ -92,6 +98,8 @@ load_reinf_penalty = False
 scale_fit_terms = False # scale individual fit function components to 0-1 range
 load_scaled_fit_terms = False # recompute min/max values for individual fit function components for 0-1 scaling; set to True if those have already been computed ('min_terms/max_terms' are present in fit_terms.json for each cluster)
 
+load_prevalence_based_ccs = True
+
 #use_scaled_fit_terms = False
 
 # add fit terms here (e.g. penalty types) as objective function options change
@@ -102,6 +110,13 @@ fit_terms_types = {
                    'mse':['mse']
                   }
 
+
+# LIKELIHOOD SAMPLING SETTINGS
+weighted_ccs_by_hfca_id_file = 'weighted_ccs_by_hfca.json'
+sample_size_percentile = 5 # sample from the top 5% points
+sample_size = 40
+#sample_size_ccs_per_cluster = 2
+min_num_combos_per_hfca = 1000
 
 
 # VISUALIZATION SETTINGS
@@ -157,9 +172,33 @@ def get_fold_bins():
     '''
     return fold_bins
         
+def get_hfca_ids_true():
+    return health_facility_names.keys()
+
+def get_hfca_ids():
+    #return ['80206']
+    return health_facility_names.keys()
+
+
+def hfca_id_2_cluster_ids(hfca_id):
+    print(hfca_id)
+    return hfca_id_cluster_ids[int(hfca_id)]
 
 def hfca_id_2_facility(hfca_id):
     return health_facility_names[int(hfca_id)]
+
+def get_cc_cluster_weight_factor(cluster_id):
+    
+    with open(os.path.join(ref_data_dir,'clusters_hs.json'),'r') as cl_f:
+        clusters_hs_weights = json.load(cl_f)
+        
+    if cluster_id in clusters_hs_weights:
+        return clusters_hs_weights[cluster_id]
+    else:
+        # return a generic average rate of health seeking if the cluster is not present in the data
+        # issue a warning 
+        print 'Cluster ' + cluster_id + ' was not found in cluster health seeking data. Using generic health seeking rate of ' + str(cc_correction_factor) 
+        return cc_correction_factor
 
 # get all clusters mapped to a given category
 def category_2_clusters(category):
@@ -173,7 +212,18 @@ def category_2_clusters(category):
     else:
         return None
 
-
+def get_cluster_category(cluster_id):
+    # get category to subsets of clusters map; e.g. categories Sinamalima_pilot, Sinamalima_no_pilot, Gwembe_pilot, etc.
+    with open(os.path.join(ref_data_dir,'cluster_categories.json'), 'r') as cats_f:
+        categories_2_clusters = json.load(cats_f)
+        
+    for category, cluster_ids in categories_2_clusters.iteritems():
+        if cluster_id in cluster_ids:
+            return category
+    # if category is not found for the cluster return Sinamalima_no_pilot category and issue a warning
+    print 'Cluster ' + cluster_id + ' category was not found. Assigning to category Sinamalima_no_pilot.'
+    return 'Sinamalima_no_pilot'
+    
 # get prevalences and pops across different rounds for all clusters; NOTE: a value of -1000 indicates a missing entry
 with open(os.path.join(ref_data_dir,'clusters_prevalences.json'), 'r') as clusters_prevs_f:
         clusters_2_prevs = json.load(clusters_prevs_f)
@@ -192,6 +242,31 @@ def cluster_2_prevs(cluster_id):
 def cluster_2_pops(cluster_id):
     if cluster_id in clusters_2_prevs:
         return clusters_2_prevs[cluster_id]['pop']
+    else:
+        return None
+    
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False   
+    
+def cluster_2_mean_pop(cluster_id):
+    if cluster_id in clusters_2_prevs:
+        pops =  clusters_2_prevs[cluster_id]['pop']
+    
+        mean_pop = 0.0
+        count_pops = 0
+        for pop in pops.values():
+            if is_number(pop) and pop > 0:
+                mean_pop = mean_pop + pop
+                count_pops = count_pops + 1
+        
+        mean_pop = mean_pop / (count_pops + 0.0)
+        
+        return mean_pop
+                
     else:
         return None
 

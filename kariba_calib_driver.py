@@ -5,6 +5,8 @@ import threading as th
 from Queue import Queue 
 import time
 import subprocess as sp
+import gc
+import copy
 
 from dtk.utils.simulation.OutputParser import CompsDTKOutputParser as parser
 from dtk.utils.simulation.COMPSJavaInterop import Experiment, QueryCriteria, Client, Configuration, Priority
@@ -13,9 +15,9 @@ from dtk.utils.core.DTKSetupParser import DTKSetupParser
 from utils import copy_all 
 from plot_utils import PlotUtils
 from viz_config import VizConfig
-from kariba_utils import combine_tags_reports
+from kariba_utils import combine_tags_reports, get_prevalence_based_cc, weighted_ccs_combos
 
-from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, fit_terms_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file
+from kariba_settings import num_procs, sim_data_dir, best_fits_file, all_fits_file, fit_terms_file, calibration_data_file, traces_plots_dir, traces_base_file_name, cc_traces_plots_dir, cc_traces_base_file_name, err_surfaces_plots_dir, err_surfaces_base_file_name, cc_penalty_model, kariba_viz_dir, residuals_file, weighted_ccs_by_hfca_id_file, load_prevalence_based_ccs, weighted_cc_traces_plots_dir
 
 def multi_proc_run(sweep_name, sweep, command):
     
@@ -119,14 +121,13 @@ if __name__ == '__main__':
                                   }
               }
     
-    
     '''
     sweep =  {              
-           "Sinamalima_no_pilot":{
-                                     'Sinamalima_1_node_MSAT_0.7_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.7_w_NO_pilot_calib_d1297ec8-e848-e511-93f8-f0921c16849c.json'],
-                                     'Sinamalima_1_node_MSAT_0.55_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.55_w_NO_pilot_calib_71ff6f4c-e848-e511-93f8-f0921c16849c.json'],
-                                     'Sinamalima_1_node_MSAT_0.35_w_NO_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Sinamalima_1_node_MSAT_0.35_w_NO_pilot_calib_98ee99d3-e748-e511-93f8-f0921c16849c.json']
-                                     }
+                "Gwembe_pilot":{
+                                          'Gwembe_1_node_MSAT_0.7_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Gwembe_1_node_MSAT_0.7_w_pilot_calib_a84a10ba-ef48-e511-93f8-f0921c16849c.json'],
+                                          'Gwembe_1_node_MSAT_0.55_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Gwembe_1_node_MSAT_0.55_w_pilot_calib_bc4d78c1-ee48-e511-93f8-f0921c16849c.json'],
+                                          'Gwembe_1_node_MSAT_0.35_w_pilot':['C:\\Users\\Mnikolov\\Zambia-raw\\dtk-scripts\\1node\\simulations\\Gwembe_1_node_MSAT_0.35_w_pilot_calib_330dee5a-ee48-e511-93f8-f0921c16849c.json']
+                                          }
               }
     '''
     
@@ -140,6 +141,9 @@ if __name__ == '__main__':
         os.mkdir(viz_root_sweep_dir)
     
     
+    # CALIBRATE
+    
+    
     multi_proc_run(sweep_name, sweep, 'kariba_calib.py')
     
     
@@ -151,9 +155,13 @@ if __name__ == '__main__':
     # also, create all error surface, prevalence time_series plots if any in the root sweep dir
     print "Best fits per category found."
 
+
+
+    # MERGING RESIDUALS, FIT FILES
     print "Combining per category best fits, all_fits, residuals; plotting best fits and residuals, and preparing d3js visualization."
     min_residual = float('inf')
     max_residual = 0.0
+        
         
     for category in sweep:
         
@@ -204,9 +212,69 @@ if __name__ == '__main__':
         json.dump(residuals, res_f, indent = 2)
     
     
+    # SAMPLING PREVALENCE SPACE AND CONSTRUCTING CLINICAL CASES TIME-SERIES per HFCA
+    
+    weighted_ccs_model_agg_by_hfca = {}
+
+    calib_data = {}
+        
+    for category in sweep:
+        calib_data[category] = {}
+        sweep_dir = os.path.join(sim_data_dir,category)
+        
+        with open(os.path.join(sweep_dir, calibration_data_file), 'r') as calib_data_f:
+            calib_data_cat = json.load(calib_data_f)
+            
+        # pruning calib_data to get only what's needed for sampling
+        
+        print 'calib data for category ' + category + ' has been loaded'
+        
+        for group_key, sim_entries in calib_data_cat.iteritems():
+            calib_data[category][group_key] = {}
+            for sim_key, sim_entry in sim_entries.iteritems():
+                calib_data[category][group_key][sim_key] = {}
+                sim_entry_pruned = copy.deepcopy(sim_entry['cc'])
+                calib_data[category][group_key][sim_key] = sim_entry_pruned
+                
+        del calib_data_cat
+        gc.collect()
+
+    if not load_prevalence_based_ccs:        
+        weighted_ccs_model_agg_by_hfca = get_prevalence_based_cc(best_fits, all_fits, calib_data)
+    else:
+        # if sampling already done simply load
+        weighted_ccs_by_hfca_id_file_path = os.path.join(sim_data_dir, weighted_ccs_by_hfca_id_file)
+        with open(weighted_ccs_by_hfca_id_file_path, 'r') as w_ccs_f:
+            weighted_ccs_model_agg_by_hfca = json.load(w_ccs_f)    
+    
+    weighted_ccs_model_agg_by_hfca_combo = {}
+    for hfca_id, ccs_model_agg in weighted_ccs_model_agg_by_hfca.iteritems():
+        weighted_ccs_model_agg_by_hfca_combo[hfca_id], samples_per_cluster = weighted_ccs_combos(hfca_id, ccs_model_agg)
+        
+    with open (os.path.join(sim_data_dir, 'weighted_ccs_combos.json'), 'w') as wccs_f:
+        json.dump(weighted_ccs_model_agg_by_hfca_combo, wccs_f, indent = 3)
+                
+    # PLOTTING
     multi_proc_run(sweep_name, sweep, 'kariba_plots.py')
     
+    viz_root_sweep_dir = os.path.join(kariba_viz_dir, sweep_name)
+    if not os.path.exists(viz_root_sweep_dir):
+        os.mkdir(viz_root_sweep_dir)
     
+     # create weighted clinical cases plots directory if it doesn't exist
+    weighted_cc_plots_dir = os.path.join(viz_root_sweep_dir, weighted_cc_traces_plots_dir)
+    if not os.path.exists(weighted_cc_plots_dir):
+        print "Creating prevalence directory " + str(weighted_cc_plots_dir)
+        os.mkdir(weighted_cc_plots_dir)
+    
+    print "Plotting per cluster prevalence for category " + category
+    
+    pp = PlotUtils(best_fits, all_fits, calib_data, residuals, viz_root_sweep_dir, category)
+    pp.plot_weighted_cc_per_hfca(weighted_ccs_model_agg_by_hfca_combo, weighted_ccs_model_agg_by_hfca)
+    
+    
+    
+    # GAZETTEER GENERATION
     print "Generating gazetteer"
     
     # combining tags reports from sweep categories
@@ -231,3 +299,4 @@ if __name__ == '__main__':
     
     
     print "Gazetteer generated. Index file stored in " + kariba_viz_dir
+    

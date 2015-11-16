@@ -69,6 +69,15 @@ for nodeid,clustercode in node_names.items():
     facilitycode=int(clustercode.split('_')[0])
     facilityname=health_facility_names[facilitycode]
     nodeids_by_facility[facilityname].append(nodeid)
+    
+
+hfca_id_cluster_ids = {}
+for hfca_id in health_facility_names.keys():
+    hfca_id_cluster_ids[hfca_id]=[]
+for nodeid,cluster_id in node_names.iteritems():
+    hfca_id=int(cluster_id.split('_')[0])
+    hfca_id_cluster_ids[hfca_id].append(cluster_id)
+    
 
 def nodes_from_facilities(facilities):
     nodes=[]
